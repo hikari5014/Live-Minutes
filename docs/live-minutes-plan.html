@@ -529,6 +529,26 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
 .footer .wrap{display:flex; flex-wrap:wrap; gap:20px; align-items:center; justify-content:space-between}
 .footer small{font-size:12.5px; color:var(--faint)}
 
+/* language modes + option toggles */
+.modeflag{font-size:11px; font-weight:800; letter-spacing:.04em; padding:3px 9px; border-radius:999px; display:inline-block}
+.modeflag.a{background:var(--zh-tint); color:var(--zh-ink)}
+.modeflag.b{background:var(--brand-tint); color:var(--brand-ink)}
+.modeflag.c{background:var(--cf-tint); color:var(--cf)}
+/* mockup: meeting settings card */
+.setcard{background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-sm); overflow:hidden}
+.langpick{display:flex; align-items:center; gap:8px; padding:11px 12px}
+.langpick .lg{font-weight:750; color:var(--ink); font-size:13.5px}
+.langpick .ar{color:var(--faint)}
+.langpick .tag2{margin-left:auto; font-size:10.5px; font-weight:800; color:var(--cf); background:var(--cf-tint); padding:3px 8px; border-radius:999px}
+.optrow{display:flex; align-items:center; gap:10px; padding:10px 12px; border-top:1px solid var(--border)}
+.optrow .ol{font-size:12.5px; color:var(--ink); font-weight:700}
+.optrow .os{font-size:10.5px; color:var(--faint); margin-top:1px}
+.optrow .sp{margin-left:auto}
+.tgl{width:36px; height:21px; border-radius:999px; position:relative; flex:0 0 auto; background:var(--brand)}
+.tgl.off{background:var(--border-strong)}
+.tgl::after{content:""; position:absolute; top:2px; left:2px; width:17px; height:17px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.tgl.on::after{left:17px}
+
 /* reduced motion */
 @media (prefers-reduced-motion:reduce){
   *{animation:none !important; transition:none !important}
@@ -564,7 +584,7 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
   <div class="hero__inner">
     <span class="livechip"><span class="dot"></span>即時 · 雙語 · AI 會議紀錄</span>
     <h1>Live&nbsp;<span class="accent">Minutes</span></h1>
-    <p class="hero__sub">一款可「加入手機桌面」的 PWA。開會時<b>即時聽打</b>、標記<b>發言者</b>、同步顯示<b>繁體中文</b>雙語字幕；朋友點<b>分享連結</b>即可加入同一場會議一起看。散會後，AI 自動整理成<b>結構化會議紀錄</b>，可讀、可下載、可回看。</p>
+    <p class="hero__sub">一款可「加入手機桌面」的 PWA。開會時<b>即時聽打</b>、標記<b>發言者</b>、同步顯示<b>雙語字幕（外語轉中文、或中文轉外語）</b>；朋友點<b>分享連結</b>即可加入——連外國同事都能看自己語言的字幕即時參與。散會後<b>可選擇讓 AI 整理</b>成結構化會議紀錄，可讀、可下載、可回看。</p>
 
     <div class="chips" aria-label="技術堆疊">
       <span class="chip"><i></i>PWA · React</span>
@@ -592,7 +612,7 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
     <div class="section__head">
       <span class="eyebrow">01 — 產品概念</span>
       <h2>一句話：把每一場跨語言會議，變成一份可搜尋的中文紀錄</h2>
-      <p class="lead">使用者打開網頁（或桌面圖示）、按下錄音，Live Minutes 就開始把說話內容即時轉成文字、翻成繁體中文、標出是誰在說；把連結傳給同事，對方就能即時同看；散會後自動生成摘要、決議與待辦——全程不需要安裝任何 App。</p>
+      <p class="lead">使用者打開網頁（或桌面圖示）、按下錄音，Live Minutes 就開始把說話內容即時轉成文字、<b>翻成你要的語言（或不翻、純逐字稿）</b>、標出是誰在說；把連結傳給同事——連外國同事都能看自己語言的字幕即時參與；散會後<b>可選擇是否</b>自動生成摘要、決議與待辦——全程不需要安裝任何 App。</p>
     </div>
 
     <div class="grid3" style="margin-bottom:26px">
@@ -610,10 +630,23 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
       </div>
     </div>
 
+    <h3 style="font-size:19px; color:var(--ink); margin:2px 0 6px; letter-spacing:-.01em">彈性語言模式：翻不翻、翻去哪，開會前自己選</h3>
+    <p style="color:var(--muted); font-size:14.5px; margin-bottom:16px; max-width:70ch">同一套流程，靠「來源語言 → 字幕語言」加幾個開關，就能覆蓋三種情境：</p>
+    <div class="grid3" style="margin-bottom:20px">
+      <div class="card"><span class="modeflag a">中文 → 中文</span><h3 style="margin-top:12px">不翻譯 · 純逐字稿</h3><p>整場中文會議可關閉翻譯，直接產生逐字稿與會議紀錄，<b>DeepL 用量歸零</b>。</p></div>
+      <div class="card"><span class="modeflag b">外語 → 繁中</span><h3 style="margin-top:12px">看懂外語會議</h3><p>英／日／… 即時轉繁體中文字幕（原始用途）。來源語言可自動偵測或指定。</p></div>
+      <div class="card"><span class="modeflag c">中文 → 外語</span><h3 style="margin-top:12px">即時口譯 · 分享外國人</h3><p>把中文即時翻成英／日／…，<b>分享連結給外國同事，他們就能即時參與中文會議</b>。</p></div>
+    </div>
+    <div class="callout callout--info" style="margin-bottom:28px">
+      <h4>語言與紀錄，都是「每場會議」可調的開關</h4>
+      <p>來源語言、字幕語言（含「不翻譯」）、語者分離、以及<b>會後是否產生 AI 紀錄</b>，全在開始前設定。不需要總結時就關掉紀錄，省下 Gemini 免費額度。技術上都成立：Deepgram 支援中文 ASR 與語者分離、DeepL 支援中↔英／日等雙向翻譯。</p>
+    </div>
+
+    <h3 style="font-size:19px; color:var(--ink); margin:2px 0 14px; letter-spacing:-.01em">核心流程</h3>
     <ol class="flowlist" aria-label="核心流程">
       <li><div><b>開始錄音</b><br><span>手機瀏覽器透過 getUserMedia 取得麥克風，以 AudioWorklet 擷取 16kHz PCM 音訊。</span></div></li>
       <li><div><b>即時辨識</b><br><span>音訊經 Cloudflare Durable Object「房間」中繼給 Deepgram，回傳帶標點、帶語者標籤的逐句文字。</span></div></li>
-      <li><div><b>即時翻譯</b><br><span>每句「定稿」後才送 DeepL 翻成繁中，避免逐字翻造成閃爍與額度爆量。</span></div></li>
+      <li><div><b>即時翻譯（可關閉、可雙向）</b><br><span>每句「定稿」後才送 DeepL——可外語翻繁中、也可中文翻外語；純中文會議可整段關閉翻譯，只出逐字稿、省下 DeepL 額度。</span></div></li>
       <li><div><b>房間廣播 · 跨裝置</b><br><span>字幕由該場會議的 Durable Object 即時廣播給房間內所有裝置；朋友用分享連結加入即可同看。</span></div></li>
       <li><div><b>生成紀錄</b><br><span>按下「結束會議」→ Cloudflare Worker 把完整逐字稿交給 Gemini → 結構化繁中紀錄存入 D1，房間連結變成回看頁。</span></div></li>
     </ol>
@@ -744,7 +777,7 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
     <div class="section__head">
       <span class="eyebrow">04 — 會議房間與分享連結</span>
       <h2>每場會議一個房間、一條連結，點開就一起看</h2>
-      <p class="lead">這是「跨裝置 / 分享給朋友隨開即用」的核心機制：每建立一場會議，就生出一個 <b>Durable Object 房間</b> 與一條 <b>分享連結</b>（例如 <code>liveminutes.app/m/ab12cd</code>）。主持人錄音、其他人點連結加入，字幕即時同步——無需安裝、可選免登入。</p>
+      <p class="lead">這是「跨裝置 / 分享給朋友隨開即用」的核心機制：每建立一場會議，就生出一個 <b>Durable Object 房間</b> 與一條 <b>分享連結</b>（例如 <code>liveminutes.app/m/ab12cd</code>）。主持人錄音、其他人點連結加入，字幕即時同步——無需安裝、可選免登入。搭配「中文 → 外語」模式，外國同事也能看自己語言的字幕、即時參與中文會議。</p>
     </div>
 
     <div class="grid2" style="align-items:start; gap:28px">
@@ -764,6 +797,10 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
         <div class="callout callout--warn" style="margin-top:14px">
           <h4><span class="pill pill--warn">留意</span>費用與權限算主持人</h4>
           <p>公開連結被使用時，Deepgram／DeepL／Gemini 用量記在<b>主持人金鑰</b>。建議支援：連結密碼、有效期、以及「僅觀看（唯讀）」模式，必要時再加登入。</p>
+        </div>
+        <div class="callout callout--info" style="margin-top:14px">
+          <h4><span class="pill" style="background:var(--cf-tint); color:var(--cf)">進階</span>每位觀看者可選自己的字幕語言</h4>
+          <p>外國同事加入後可各自選字幕語言（英／日／…）。房間<b>每種語言只翻一次</b>再分送——加人不加成本，增加的只是「語言種數」。中文會議因此能被多國參與者同時看懂。</p>
         </div>
       </div>
 
@@ -840,8 +877,9 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
 
     <div class="grid2" style="margin-top:26px">
       <div class="card"><h3 class="with-ic"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4"/></svg></span>主持人（錄音端）</h3><p>擁有麥克風控制、開始/結束、語者命名與權限設定；音訊只從這端進房間辨識。</p></div>
-      <div class="card"><h3 class="with-ic"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>觀看者（唯讀端）</h3><p>點連結即進房間，同步看到雙語字幕與語者；不需麥克風、不佔辨識額度，散會後可回看紀錄。</p></div>
+      <div class="card"><h3 class="with-ic"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></span>觀看者（唯讀端）</h3><p>點連結即進房間，<b>可自選字幕語言</b>、同步看到字幕與語者；不需麥克風、不佔辨識額度，散會後可回看紀錄。</p></div>
     </div>
+    <p class="note">更進階：授權外國同事為「發言者」即可雙向口譯——每位同時發言者各開一路辨識與翻譯，成本隨同時發言路數增加，適合列為後期選項。</p>
   </div>
 </section>
 
@@ -958,11 +996,13 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
               <span class="avatar">陳</span>
             </div>
             <div class="s-scroll">
-              <div class="langsel">
-                <span class="lg">English</span>
-                <span class="ar" aria-hidden="true">→</span>
-                <span class="lg">繁體中文</span>
-                <span class="zhtag">DeepL</span>
+              <div class="setcard">
+                <div class="langpick">
+                  <span class="lg">中文</span><span class="ar" aria-hidden="true">→</span><span class="lg">English</span>
+                  <span class="tag2">即時口譯</span>
+                </div>
+                <div class="optrow"><div><div class="ol">語者分離</div><div class="os">標記發言者 1／2／3</div></div><span class="sp"></span><span class="tgl on" aria-hidden="true"></span></div>
+                <div class="optrow"><div><div class="ol">會後 AI 紀錄</div><div class="os">關閉可省 Gemini 額度</div></div><span class="sp"></span><span class="tgl on" aria-hidden="true"></span></div>
               </div>
               <div class="record">
                 <div>
@@ -970,17 +1010,17 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
                   <span>開始錄音</span>
                 </div>
               </div>
-              <p class="hint">點按開始 · 需保持螢幕開啟</p>
+              <p class="hint">中文 → English · 分享連結給外國同事即時同看</p>
               <div class="sec-title">最近的會議</div>
               <div class="sess">
                 <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4z"/><path d="M8 3v4M16 3v4M4 10h16"/></svg></div>
-                <div class="m"><b>Q3 產品路線圖同步</b><span class="tnum">07/22 · 48 分 · 3 位發言者</span></div>
+                <div class="m"><b>Q3 產品路線圖同步</b><span class="tnum">07/22 · 48 分 · 中→英口譯</span></div>
                 <span class="badge">已整理</span>
               </div>
               <div class="sess">
                 <div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4z"/><path d="M8 3v4M16 3v4M4 10h16"/></svg></div>
-                <div class="m"><b>Design x Eng 週會</b><span class="tnum">07/21 · 31 分 · 2 位發言者</span></div>
-                <span class="badge">已整理</span>
+                <div class="m"><b>台北團隊晨會</b><span class="tnum">07/21 · 18 分 · 純中文逐字稿</span></div>
+                <span class="badge" style="color:var(--muted); background:var(--surface-2)">未生成紀錄</span>
               </div>
             </div>
             <nav class="tabbar" aria-label="底部導覽">
@@ -990,7 +1030,7 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
             </nav>
           </div>
         </div>
-        <figcaption class="mock__cap"><b>① 開始畫面</b><span>語言配對 · 大錄音鍵 · 歷史會議</span></figcaption>
+        <figcaption class="mock__cap"><b>① 開始畫面</b><span>語言模式 · 語者／紀錄開關 · 歷史</span></figcaption>
       </figure>
 
       <!-- Screen 2: Live captions -->
@@ -1164,9 +1204,9 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
       <div class="tl">
         <div class="tl__dot">2</div>
         <div class="tl__b">
-          <h4>DeepL 雙語 + D1 儲存 <span class="tag">約 1 週</span></h4>
-          <p>定稿句經 Worker <code>/api/translate</code> 翻成繁中，雙層字幕成形；逐句與 session 寫入 D1。</p>
-          <div class="tech"><span>DeepL API</span><span>Cloudflare D1</span><span>/api/translate</span></div>
+          <h4>語言模式 + DeepL 雙向 + D1 <span class="tag">約 1 週</span></h4>
+          <p>定稿句經 Worker <code>/api/translate</code> 翻譯（外語→繁中 或 中文→外語，可整段關閉為純逐字稿）；雙層字幕成形，逐句與 session 寫入 D1。</p>
+          <div class="tech"><span>語言模式</span><span>DeepL API</span><span>Cloudflare D1</span><span>/api/translate</span></div>
         </div>
       </div>
       <div class="tl">
@@ -1181,7 +1221,7 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
         <div class="tl__dot">4</div>
         <div class="tl__b">
           <h4>AI 會議紀錄 + 打磨 <span class="tag tag--ok">MVP 完成</span></h4>
-          <p>結束會議觸發 Worker <code>/api/minutes</code>，Gemini 產生結構化紀錄（摘要/決議/待辦/主題）存 D1，回看頁可下載 Markdown / PDF；加上登入、歷史、離線快取。</p>
+          <p>結束會議觸發 Worker <code>/api/minutes</code>（<b>每場可選要不要生成</b>），Gemini 產生結構化紀錄（摘要/決議/待辦/主題）存 D1，回看頁可下載 Markdown / PDF；加上登入、歷史、離線快取。</p>
           <div class="tech"><span>Gemini 2.5 Flash</span><span>/api/minutes</span><span>Cloudflare Access（選用）</span><span>Service Worker</span></div>
         </div>
       </div>
@@ -1210,6 +1250,9 @@ ul.bullets li::before{content:""; width:7px; height:7px; border-radius:2px; back
       <h4>成本控制策略</h4>
       <ul class="bullets" style="margin-top:6px">
         <li><b>觀看者不加辨識費：</b>房間只辨識主持人音訊一次，字幕以廣播分送，加人不加 Deepgram 成本。</li>
+        <li><b>不翻譯模式：</b>純中文會議關閉翻譯，DeepL 用量歸零，只出逐字稿。</li>
+        <li><b>會後紀錄可關：</b>不需要總結的會議關掉 AI 紀錄，Gemini 一次呼叫都不花。</li>
+        <li><b>多語去重：</b>同一種目標語言只翻一次再分送給所有選該語言的觀看者。</li>
         <li>把 ASR 供應商抽象成介面：Deepgram 額度用罄可切 Web Speech API（免費）或其他供應商。</li>
         <li>只翻定稿句 + 去重，DeepL 字元數可壓到原本的一小部分。</li>
         <li>Durable Objects 用 WebSocket Hibernation，沉默時段不計運行費；閒置自動停止錄音與辨識。</li>
