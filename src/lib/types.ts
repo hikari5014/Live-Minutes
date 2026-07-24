@@ -61,3 +61,9 @@ export interface SessionMeta {
   speakers: number
   hasMinutes: boolean
 }
+
+export interface SessionPayload {
+  meta: SessionMeta
+  utterances: Utterance[]
+  minutes: MinutesDoc | null
+}

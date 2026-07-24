@@ -1,13 +1,13 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getSession, getMinutes, saveMinutes } from '../lib/history'
-import { requestMinutesFromTranscript } from '../lib/api'
+import { requestMinutesFromTranscript, fetchSession } from '../lib/api'
 import { transcriptText, minutesMarkdown, downloadText } from '../lib/minutes'
 import { TopBar } from '../components/TopBar'
 import { ChevronLeft, Sparkles, Download, Users, Calendar } from '../components/icons'
 import { shortDate, durationLabel, fromMs } from '../lib/format'
 import { speakerColor, speakerLabel, targetLabel } from '../lib/langs'
-import type { MinutesDoc } from '../lib/types'
+import type { MinutesDoc, SessionMeta, Utterance } from '../lib/types'
 
 function Block({ title, dot, children }: { title: string; dot: string; children: ReactNode }) {
   return (
@@ -28,10 +28,39 @@ function Bullet() {
 export default function Minutes() {
   const { id = '' } = useParams()
   const nav = useNavigate()
-  const data = useMemo(() => getSession(id), [id])
+  const local = getSession(id)
+  const [data, setData] = useState<{ meta: SessionMeta; utterances: Utterance[] } | null>(local)
   const [minutes, setMinutes] = useState<MinutesDoc | null>(() => getMinutes(id))
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(!local)
+
+  // No local copy? Fetch it from the backend (viewer on another device).
+  useEffect(() => {
+    if (data) return
+    let ok = true
+    fetchSession(id)
+      .then((d) => {
+        if (!ok || !d) return
+        setData({ meta: d.meta, utterances: d.utterances })
+        if (d.minutes) setMinutes(d.minutes)
+      })
+      .finally(() => {
+        if (ok) setLoading(false)
+      })
+    return () => {
+      ok = false
+    }
+  }, [id, data])
+
+  if (loading) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-paper">
+        <TopBar />
+        <div className="mx-auto max-w-md p-10 text-center text-muted">載入中…</div>
+      </div>
+    )
+  }
 
   if (!data) {
     return (

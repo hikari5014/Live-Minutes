@@ -1,6 +1,6 @@
 // Client for the Cloudflare Worker API. All endpoints live under /api.
 // Calls degrade gracefully when the backend is not yet connected.
-import type { MinutesDoc } from './types'
+import type { MinutesDoc, SessionPayload } from './types'
 
 async function postJSON<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const res = await fetch(path, {
@@ -44,6 +44,18 @@ export async function requestMinutesFromTranscript(
 /** Fetch a short-lived Deepgram key so the browser/room can stream directly. */
 export async function getDeepgramToken(): Promise<{ key: string; expiresAt: number }> {
   return postJSON<{ key: string; expiresAt: number }>('/api/token', {})
+}
+
+/** Load a stored session (transcript + minutes) from the backend — used when
+ *  a viewer opens a meeting on a device that has no local copy. */
+export async function fetchSession(id: string): Promise<SessionPayload | null> {
+  try {
+    const res = await fetch(`/api/session/${encodeURIComponent(id)}`)
+    if (!res.ok) return null
+    return (await res.json()) as SessionPayload
+  } catch {
+    return null
+  }
 }
 
 export async function backendAvailable(): Promise<boolean> {

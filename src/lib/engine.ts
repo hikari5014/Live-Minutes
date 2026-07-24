@@ -1,10 +1,11 @@
 // MeetingEngine orchestrates the live pipeline:
-//   ASR (Web Speech now / Deepgram via room later) -> finalized segment
-//   -> optional translation -> store -> local history on stop.
+//   ASR (Deepgram if available, else Web Speech) -> finalized segment
+//   -> optional translation -> store -> room broadcast -> local history.
 import { useStore } from '../state/store'
 import { LANGS } from './langs'
-import { WebSpeechASR, type ASREngine } from './asr'
-import { backendAvailable, translateText } from './api'
+import { WebSpeechASR, type ASRCallbacks, type ASREngine } from './asr'
+import { DeepgramASR } from './asr-deepgram'
+import { backendAvailable, getDeepgramToken, translateText } from './api'
 import { enableWakeLock, disableWakeLock } from './wakelock'
 import { saveSession } from './history'
 import { joinAsHost, type HostRoom } from './room'
@@ -45,7 +46,6 @@ class MeetingEngine {
   private t0 = 0
   private backendOk = false
 
-  /** Ensure there is a room id to start from (host flow). */
   prepareRoomId(): string {
     const id = genRoomId()
     useStore.getState().startSession(id, Date.now(), true)
@@ -55,9 +55,7 @@ class MeetingEngine {
   async start(): Promise<void> {
     const st = useStore.getState()
     const s = st.settings
-    if (!st.roomId) {
-      this.prepareRoomId()
-    }
+    if (!st.roomId) this.prepareRoomId()
     st.setError(null)
     st.setStatus('connecting')
     this.t0 = useStore.getState().startedAt ?? Date.now()
@@ -65,7 +63,6 @@ class MeetingEngine {
     this.timer = window.setInterval(() => useStore.getState().tick(), 1000)
     void enableWakeLock()
 
-    // Is a backend connected? Enables translation + cross-device rooms.
     this.backendOk = await backendAvailable()
     useStore.getState().setBackendReady(this.backendOk)
 
@@ -80,10 +77,23 @@ class MeetingEngine {
       })
     }
 
-    // ASR provider. Web Speech works with zero backend; Deepgram can later
-    // replace it (host streams audio to the room) for quality + diarization.
+    const cb = this.callbacks()
     const src = LANGS[s.sourceLang]
-    this.asr = new WebSpeechASR(src.bcp47, {
+
+    // Prefer Deepgram when available (better quality + diarization); else Web Speech.
+    let asr: ASREngine | null = null
+    const wantDeepgram = this.backendOk && (s.asrProvider === 'deepgram' || (s.asrProvider === 'auto' && s.diarization))
+    if (wantDeepgram) {
+      const tok = await getDeepgramToken().catch(() => null)
+      if (tok?.key) asr = new DeepgramASR(src.deepgram, cb, tok.key)
+    }
+    if (!asr) asr = new WebSpeechASR(src.bcp47, cb)
+    this.asr = asr
+    await asr.start()
+  }
+
+  private callbacks(): ASRCallbacks {
+    return {
       onInterim: (text) => {
         useStore.getState().setInterim(text ? { speaker: null, source: text, translation: null } : null)
         this.host?.publishInterim(null, text)
@@ -94,8 +104,7 @@ class MeetingEngine {
         useStore.getState().setStatus('live')
         useStore.getState().setMicReady(true)
       },
-    })
-    await this.asr.start()
+    }
   }
 
   private handleFinal(text: string, speaker: number | null): void {
