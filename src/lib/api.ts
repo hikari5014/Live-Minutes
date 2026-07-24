@@ -58,6 +58,23 @@ export async function fetchSession(id: string): Promise<SessionPayload | null> {
   }
 }
 
+export interface UsageInfo {
+  deepl: { configured: boolean; used?: number; limit?: number; error?: string }
+  deepgram: { configured: boolean; balance?: number | null; units?: string; error?: string }
+  gemini: { available: boolean; note?: string }
+}
+
+/** Fetch per-provider API usage/quota (DeepL characters, Deepgram balance). */
+export async function fetchUsage(): Promise<UsageInfo | null> {
+  try {
+    const res = await fetch('/api/usage')
+    if (!res.ok) return null
+    return (await res.json()) as UsageInfo
+  } catch {
+    return null
+  }
+}
+
 export async function backendAvailable(): Promise<boolean> {
   try {
     const res = await fetch('/api/health', { method: 'GET' })

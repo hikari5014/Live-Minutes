@@ -15,6 +15,8 @@ export interface LangOption {
   bcp47: string // Web Speech / SpeechRecognition
 }
 
+export type CaptionOrder = 'newest-top' | 'newest-bottom'
+
 export interface MeetingSettings {
   title: string
   sourceLang: LangCode
@@ -22,6 +24,11 @@ export interface MeetingSettings {
   diarization: boolean
   generateMinutes: boolean
   asrProvider: 'auto' | 'deepgram' | 'webspeech'
+  captionOrder: CaptionOrder
+  fontSource: number // 原文字級 1..5
+  fontTranslation: number // 譯文字級 1..5
+  translateChunkChars: number // 0 = 逐句即時；>0 = 合併到約 N 字再翻譯
+  translateMaxWaitSec: number // 批次翻譯的最長等待秒數
 }
 
 export interface Utterance {

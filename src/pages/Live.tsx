@@ -88,7 +88,14 @@ export default function Live() {
       )}
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden">
-        <CaptionStream utterances={utterances} interim={interim} showTranslation={showTranslation} />
+        <CaptionStream
+          utterances={utterances}
+          interim={interim}
+          showTranslation={showTranslation}
+          order={settings.captionOrder}
+          fontSource={settings.fontSource}
+          fontTranslation={settings.fontTranslation}
+        />
       </div>
 
       <div className="safe-b mx-auto w-full max-w-md px-4 pb-5">

@@ -18,6 +18,15 @@ function genRoomId(): string {
   return Array.from(arr, (n) => chars[n % chars.length]).join('')
 }
 
+// Join two caption fragments, inserting a space only between Latin/alnum runs
+// (CJK text is concatenated without spaces).
+function joinText(a: string, b: string): string {
+  if (!a) return b
+  if (!b) return a
+  const needsSpace = /[A-Za-z0-9)\]]$/.test(a) && /^[A-Za-z0-9([]/.test(b)
+  return needsSpace ? `${a} ${b}` : a + b
+}
+
 function defaultTitle(): string {
   const d = new Date()
   const p = (n: number) => String(n).padStart(2, '0')
@@ -46,6 +55,8 @@ class MeetingEngine {
   private t0 = 0
   private backendOk = false
   private fellBack = false
+  private pending: { text: string; speaker: number | null; ts: number } | null = null
+  private flushTimer: number | null = null
 
   prepareRoomId(): string {
     const id = genRoomId()
@@ -58,6 +69,11 @@ class MeetingEngine {
     const s = st.settings
     this.prepareRoomId() // always begin a fresh room: resets timer, utterances, id
     this.fellBack = false
+    this.pending = null
+    if (this.flushTimer !== null) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = null
+    }
     st.setError(null)
     st.setStatus('connecting')
     this.t0 = useStore.getState().startedAt ?? Date.now()
@@ -97,8 +113,11 @@ class MeetingEngine {
   private callbacks(): ASRCallbacks {
     return {
       onInterim: (text) => {
-        useStore.getState().setInterim(text ? { speaker: null, source: text, translation: null } : null)
-        this.host?.publishInterim(null, text)
+        // While batching, show buffered finals + the live partial together.
+        const p = this.pending
+        const show = (p?.text ? joinText(p.text, text || '') : text || '').trim()
+        useStore.getState().setInterim(show ? { speaker: p?.speaker ?? null, source: show, translation: null } : null)
+        this.host?.publishInterim(p?.speaker ?? null, show)
       },
       onFinal: (text, speaker) => this.handleFinal(text, speaker),
       onError: (msg) => useStore.getState().setError(msg),
@@ -110,19 +129,48 @@ class MeetingEngine {
   }
 
   private handleFinal(text: string, speaker: number | null): void {
-    const st = useStore.getState()
-    const s = st.settings
+    const chunk = useStore.getState().settings.translateChunkChars ?? 0
+    if (chunk <= 0) {
+      this.emitUtterance(text, speaker) // 逐句即時：translate each finalized sentence
+      return
+    }
+    // Batch consecutive finals into a longer segment before translating, so
+    // translation is more coherent and DeepL is called less often.
+    if (this.pending && speaker !== null && this.pending.speaker !== null && speaker !== this.pending.speaker) {
+      this.flush() // speaker changed — close the current batch first
+    }
+    if (!this.pending) this.pending = { text: '', speaker, ts: Date.now() - this.t0 }
+    this.pending.text = joinText(this.pending.text, text)
+    if (this.pending.speaker === null && speaker !== null) this.pending.speaker = speaker
+    useStore.getState().setInterim({ speaker: this.pending.speaker, source: this.pending.text, translation: null })
+    this.host?.publishInterim(this.pending.speaker, this.pending.text)
+    if (this.pending.text.length >= chunk) {
+      this.flush()
+      return
+    }
+    if (this.flushTimer === null) {
+      const waitMs = Math.max(0, useStore.getState().settings.translateMaxWaitSec ?? 3) * 1000
+      this.flushTimer = window.setTimeout(() => {
+        this.flushTimer = null
+        this.flush()
+      }, waitMs || 1)
+    }
+  }
+
+  private emitUtterance(text: string, speaker: number | null, ts?: number): void {
+    const s = useStore.getState().settings
     const u: Utterance = {
       id: crypto.randomUUID(),
       speaker,
       source: text,
       translation: null,
-      ts: Date.now() - this.t0,
+      ts: ts ?? (Date.now() - this.t0),
       final: true,
     }
-    st.addFinal(u)
-    st.setInterim(null)
+    useStore.getState().addFinal(u)
+    useStore.getState().setInterim(null)
     this.host?.publishFinal(u)
+    this.host?.publishInterim(null, '')
 
     if (s.targetLang !== 'none' && this.backendOk) {
       const target = LANGS[s.targetLang]
@@ -133,6 +181,17 @@ class MeetingEngine {
           /* backend hiccup — leave original visible */
         })
     }
+  }
+
+  private flush(): void {
+    if (this.flushTimer !== null) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = null
+    }
+    const p = this.pending
+    this.pending = null
+    if (p && p.text.trim()) this.emitUtterance(p.text, p.speaker, p.ts)
+    else useStore.getState().setInterim(null)
   }
 
   // If Deepgram fails (auth/network), transparently switch to the browser's
@@ -167,6 +226,12 @@ class MeetingEngine {
     this.host?.close()
     this.host = null
     void disableWakeLock()
+
+    if (this.flushTimer !== null) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = null
+    }
+    this.flush() // emit any buffered (not-yet-flushed) text as a final segment
 
     const st = useStore.getState()
     st.setStatus('ended')

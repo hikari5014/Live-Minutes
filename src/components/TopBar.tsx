@@ -1,6 +1,7 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toggleTheme, currentTheme } from '../lib/theme'
-import { Moon, Sun } from './icons'
+import { Moon, Settings, Sun } from './icons'
 
 export function BrandMark({ size = 26 }: { size?: number }) {
   return (
@@ -24,6 +25,7 @@ export function BrandMark({ size = 26 }: { size?: number }) {
 
 export function TopBar({ subtitle }: { subtitle?: string }) {
   const [dark, setDark] = useState(currentTheme() === 'dark')
+  const nav = useNavigate()
   return (
     <header
       className="safe-t sticky top-0 z-20 border-b border-line backdrop-blur"
@@ -36,9 +38,17 @@ export function TopBar({ subtitle }: { subtitle?: string }) {
         {subtitle && <div className="text-xs font-semibold text-faint">{subtitle}</div>}
         <button
           type="button"
+          onClick={() => nav('/settings')}
+          aria-label="設定"
+          className="ml-auto grid h-9 w-9 place-items-center rounded-[10px] border border-line-strong bg-surface text-ink"
+        >
+          <Settings className="h-[18px] w-[18px]" />
+        </button>
+        <button
+          type="button"
           onClick={() => setDark(toggleTheme() === 'dark')}
           aria-label="切換深淺色主題"
-          className="ml-auto grid h-9 w-9 place-items-center rounded-[10px] border border-line-strong bg-surface text-ink"
+          className="grid h-9 w-9 place-items-center rounded-[10px] border border-line-strong bg-surface text-ink"
         >
           {dark ? <Moon className="h-[18px] w-[18px]" /> : <Sun className="h-[18px] w-[18px]" />}
         </button>

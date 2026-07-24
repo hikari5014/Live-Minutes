@@ -2,6 +2,7 @@ import type { Env } from './types'
 import { translate } from './deepl'
 import { generateMinutes } from './gemini'
 import { grantDeepgramToken } from './deepgram'
+import { getUsage } from './usage'
 import { getSessionFromD1, getTranscriptFromD1, saveMinutesToD1 } from './db'
 import { MeetingRoom } from './room'
 
@@ -23,6 +24,8 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
   const p = url.pathname
 
   if (p === '/api/health') return json({ ok: true })
+
+  if (request.method === 'GET' && p === '/api/usage') return json(await getUsage(env))
 
   // WebSocket room -> Durable Object
   const roomMatch = p.match(/^\/api\/room\/([^/]+)$/)

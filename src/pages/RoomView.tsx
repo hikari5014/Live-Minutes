@@ -7,6 +7,7 @@ import { Select } from '../components/Select'
 import { Users, Sun, Moon } from '../components/icons'
 import { LANG_LIST } from '../lib/langs'
 import { currentTheme, toggleTheme } from '../lib/theme'
+import { useStore } from '../state/store'
 import type { Interim, TargetLang, Utterance } from '../lib/types'
 
 interface RoomMeta {
@@ -17,6 +18,7 @@ interface RoomMeta {
 
 export default function RoomView() {
   const { id = '' } = useParams()
+  const settings = useStore((s) => s.settings)
   const [utterances, setUtterances] = useState<Utterance[]>([])
   const [interim, setInterim] = useState<Interim | null>(null)
   const [meta, setMeta] = useState<RoomMeta>({ title: '會議', status: 'connecting', viewers: 0 })
@@ -109,7 +111,14 @@ export default function RoomView() {
       )}
 
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col overflow-hidden">
-        <CaptionStream utterances={utterances} interim={interim} showTranslation={showTranslation} />
+        <CaptionStream
+          utterances={utterances}
+          interim={interim}
+          showTranslation={showTranslation}
+          order={settings.captionOrder}
+          fontSource={settings.fontSource}
+          fontTranslation={settings.fontTranslation}
+        />
       </div>
 
       {ended && (
