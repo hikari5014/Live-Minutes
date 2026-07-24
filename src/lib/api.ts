@@ -1,0 +1,56 @@
+// Client for the Cloudflare Worker API. All endpoints live under /api.
+// Calls degrade gracefully when the backend is not yet connected.
+import type { MinutesDoc } from './types'
+
+async function postJSON<T>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+    signal,
+  })
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '')
+    throw new Error(`${path} ${res.status} ${detail}`)
+  }
+  return (await res.json()) as T
+}
+
+/** Translate one finalized segment. source/target are DeepL language codes. */
+export async function translateText(
+  text: string,
+  source: string,
+  target: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const data = await postJSON<{ translation: string }>('/api/translate', { text, source, target }, signal)
+  return data.translation
+}
+
+/** Ask the backend to generate AI minutes for a room from its stored transcript. */
+export async function requestMinutes(roomId: string, lang: string): Promise<MinutesDoc> {
+  return postJSON<MinutesDoc>('/api/minutes', { roomId, lang })
+}
+
+/** Generate minutes directly from a transcript (local-history fallback path). */
+export async function requestMinutesFromTranscript(
+  transcript: string,
+  title: string,
+  lang: string,
+): Promise<MinutesDoc> {
+  return postJSON<MinutesDoc>('/api/minutes', { transcript, title, lang })
+}
+
+/** Fetch a short-lived Deepgram key so the browser/room can stream directly. */
+export async function getDeepgramToken(): Promise<{ key: string; expiresAt: number }> {
+  return postJSON<{ key: string; expiresAt: number }>('/api/token', {})
+}
+
+export async function backendAvailable(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/health', { method: 'GET' })
+    return res.ok
+  } catch {
+    return false
+  }
+}
