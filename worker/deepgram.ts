@@ -7,7 +7,7 @@ export async function grantDeepgramToken(env: Env): Promise<{ key: string; expir
   const res = await fetch('https://api.deepgram.com/v1/auth/grant', {
     method: 'POST',
     headers: { Authorization: `Token ${env.DEEPGRAM_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ttl_seconds: 60 }),
+    body: JSON.stringify({ ttl_seconds: 3600 }),
   })
   if (!res.ok) throw new Error(`deepgram grant ${res.status}`)
   const data = (await res.json()) as { access_token?: string; expires_in?: number }

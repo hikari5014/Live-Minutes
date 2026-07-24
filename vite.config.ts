@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// Expose the package version to the app (shown in the top bar) so users can
+// confirm which build their PWA has loaded.
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string }
 
 // The frontend builds to ./dist and is served by the Cloudflare Worker
 // (Workers Static Assets). API + WebSocket rooms live under /api/*.
@@ -34,6 +39,7 @@ export default defineConfig({
       devOptions: { enabled: false },
     }),
   ],
+  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   server: {
     port: 5173,
     // In dev, proxy API + room websockets to a locally-running Worker (wrangler dev on :8787).

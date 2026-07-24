@@ -35,7 +35,9 @@ export class DeepgramASR implements ASREngine {
       channels: '1',
       endpointing: '300',
     })
-    const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${params.toString()}`, ['token', this.token])
+    // Short-lived grant tokens authenticate over WS with the "bearer" subprotocol.
+    // (The "token" subprotocol is only for long-lived Deepgram API keys.)
+    const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${params.toString()}`, ['bearer', this.token])
     ws.binaryType = 'arraybuffer'
     this.ws = ws
 

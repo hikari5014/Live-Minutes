@@ -45,6 +45,7 @@ class MeetingEngine {
   private timer: number | null = null
   private t0 = 0
   private backendOk = false
+  private fellBack = false
 
   prepareRoomId(): string {
     const id = genRoomId()
@@ -55,7 +56,8 @@ class MeetingEngine {
   async start(): Promise<void> {
     const st = useStore.getState()
     const s = st.settings
-    if (!st.roomId) this.prepareRoomId()
+    this.prepareRoomId() // always begin a fresh room: resets timer, utterances, id
+    this.fellBack = false
     st.setError(null)
     st.setStatus('connecting')
     this.t0 = useStore.getState().startedAt ?? Date.now()
@@ -85,7 +87,7 @@ class MeetingEngine {
     const wantDeepgram = this.backendOk && (s.asrProvider === 'deepgram' || (s.asrProvider === 'auto' && s.diarization))
     if (wantDeepgram) {
       const tok = await getDeepgramToken().catch(() => null)
-      if (tok?.key) asr = new DeepgramASR(src.deepgram, cb, tok.key)
+      if (tok?.key) asr = new DeepgramASR(src.deepgram, this.withDeepgramFallback(cb, src.bcp47), tok.key)
     }
     if (!asr) asr = new WebSpeechASR(src.bcp47, cb)
     this.asr = asr
@@ -133,6 +135,27 @@ class MeetingEngine {
     }
   }
 
+  // If Deepgram fails (auth/network), transparently switch to the browser's
+  // Web Speech so captions keep working instead of dead-ending on an error.
+  private withDeepgramFallback(cb: ASRCallbacks, bcp47: string): ASRCallbacks {
+    return {
+      ...cb,
+      onError: (msg) => {
+        if (this.fellBack) return cb.onError(msg)
+        this.fellBack = true
+        try {
+          this.asr?.stop()
+        } catch {
+          /* ignore */
+        }
+        useStore.getState().setError(null)
+        const ws = new WebSpeechASR(bcp47, cb)
+        this.asr = ws
+        void ws.start()
+      },
+    }
+  }
+
   async stop(): Promise<SessionMeta> {
     if (this.timer) {
       clearInterval(this.timer)
@@ -150,6 +173,7 @@ class MeetingEngine {
     st.setInterim(null)
     const meta = buildMeta()
     saveSession(meta, st.utterances)
+    st.resetSession() // clear live state so the next recording starts fresh
     return meta
   }
 }

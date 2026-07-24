@@ -32,6 +32,7 @@ export function TopBar({ subtitle }: { subtitle?: string }) {
       <div className="mx-auto flex max-w-md items-center gap-2.5 px-4 py-2.5">
         <BrandMark />
         <div className="font-extrabold tracking-tight text-ink">Live Minutes</div>
+        <span className="rounded-md bg-surface-2 px-1.5 py-0.5 text-[10px] font-bold leading-none text-faint">v{__APP_VERSION__}</span>
         {subtitle && <div className="text-xs font-semibold text-faint">{subtitle}</div>}
         <button
           type="button"
