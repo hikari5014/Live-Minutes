@@ -4,7 +4,8 @@ import { useStore } from '../state/store'
 import { engine } from '../lib/engine'
 import { CaptionStream } from '../components/Captions'
 import { Wave } from '../components/Wave'
-import { Share, Stop, Users, Check } from '../components/icons'
+import { ShareSheet } from '../components/ShareSheet'
+import { Share, Stop, Users } from '../components/icons'
 import { mmss } from '../lib/format'
 
 export default function Live() {
@@ -18,33 +19,13 @@ export default function Live() {
   const settings = useStore((s) => s.settings)
   const roomId = useStore((s) => s.roomId)
   const backendReady = useStore((s) => s.backendReady)
-  const [copied, setCopied] = useState(false)
+  const [showShare, setShowShare] = useState(false)
   const [stopping, setStopping] = useState(false)
 
   useEffect(() => {
     const st = useStore.getState()
     if (st.status === 'idle' || !st.roomId) nav('/', { replace: true })
   }, [nav])
-
-  async function onShare() {
-    const url = `${window.location.origin}/m/${roomId}`
-    const navAny = navigator as Navigator & { share?: (d: ShareData) => Promise<void> }
-    if (navAny.share) {
-      try {
-        await navAny.share({ title: 'Live Minutes', text: '加入我的即時會議字幕', url })
-      } catch {
-        /* cancelled */
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(url)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 1800)
-      } catch {
-        /* ignore */
-      }
-    }
-  }
 
   async function onStop() {
     setStopping(true)
@@ -114,20 +95,11 @@ export default function Live() {
         <div className="flex gap-2.5">
           <button
             type="button"
-            onClick={onShare}
+            onClick={() => setShowShare(true)}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-sm font-bold text-ink"
           >
-            {copied ? (
-              <>
-                <Check className="h-4 w-4 text-ok" />
-                已複製連結
-              </>
-            ) : (
-              <>
-                <Share className="h-4 w-4" />
-                分享連結
-              </>
-            )}
+            <Share className="h-4 w-4" />
+            分享連結
           </button>
           <button
             type="button"
@@ -142,6 +114,10 @@ export default function Live() {
         </div>
         <p className="mt-2 text-center text-[11px] text-faint">請保持螢幕開啟，避免 iOS 背景中斷錄音</p>
       </div>
+
+      {showShare && roomId && (
+        <ShareSheet roomId={roomId} title={settings.title || '會議'} viewers={viewers} onClose={() => setShowShare(false)} />
+      )}
     </div>
   )
 }
