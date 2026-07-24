@@ -22,8 +22,7 @@ new_sqlite_classes = ["MeetingRoom"]
 [[d1_databases]]
 binding = "DB"
 database_name = "live_minutes"
-# Replace after `wrangler d1 create live_minutes` (see DEPLOY.md).
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "dd99e9bf-cfde-4e32-96a1-20a642e5eb42"
 
 [vars]
 DEEPL_API_HOST = "https://api-free.deepl.com"
