@@ -17,9 +17,9 @@ npm run dev        # http://localhost:5173 — 純前端即可用 Web Speech 即
 
 - ✅ 前端 PWA：可安裝、即時字幕（Web Speech，零後端）、語言模式、設定開關、分享 UI、AI 紀錄頁
 - ✅ 後端 Worker：Durable Object 房間（WS 中繼 + 廣播）、D1 儲存、DeepL / Gemini / Deepgram 串接
-- ✅ **已部署上線**：<https://live-minutes.mark-lu.workers.dev>（D1 已建表；DeepL、Gemini 已設定並線上實測通過；Deepgram 需 owner 權限金鑰才能簽發臨時 token）
+- ✅ **已部署上線**：<https://live-minutes.mark-lu.workers.dev>（D1 已建表；DeepL、Gemini、Deepgram 三項金鑰皆已設定並線上實測通過）
 
-前端與後端皆通過建置與型別檢查；`wrangler --dry-run` 綁定驗證通過。線上端點 `health / translate / minutes` 與 SPA 分享路由實測正常。
+前端與後端皆通過建置與型別檢查；`wrangler --dry-run` 綁定驗證通過。線上端點 `health / translate / minutes / token` 與 SPA 分享路由實測正常。
 
 ## 語言模式與會議開關
 
