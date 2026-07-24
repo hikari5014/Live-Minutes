@@ -1,0 +1,11 @@
+# Local dev secrets for `wrangler dev`. Copy to `.dev.vars` and fill in.
+# `.dev.vars` is gitignored. For production use `wrangler secret put <NAME>`.
+
+# DeepL API (Free): https://www.deepl.com/pro-api  →  api-free.deepl.com
+DEEPL_API_KEY=
+
+# Deepgram (optional; Web Speech API works without it): https://console.deepgram.com
+DEEPGRAM_API_KEY=
+
+# Google Gemini (AI Studio): https://aistudio.google.com/apikey
+GEMINI_API_KEY=

@@ -1,0 +1,33 @@
+name = "live-minutes"
+main = "worker/index.ts"
+compatibility_date = "2024-11-01"
+
+# Serve the built PWA (dist/) as static assets; unknown routes fall back to
+# index.html so client-side routes like /m/:id work.
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+# Each meeting is one Durable Object "room": WS relay + caption broadcast.
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "MeetingRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MeetingRoom"]
+
+# Transcripts + minutes storage.
+[[d1_databases]]
+binding = "DB"
+database_name = "live_minutes"
+# Replace after `wrangler d1 create live_minutes` (see DEPLOY.md).
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+[vars]
+DEEPL_API_HOST = "https://api-free.deepl.com"
+GEMINI_MODEL = "gemini-2.5-flash"
+
+# Secrets (set with `wrangler secret put NAME`, or .dev.vars for local dev):
+#   DEEPL_API_KEY, DEEPGRAM_API_KEY, GEMINI_API_KEY
