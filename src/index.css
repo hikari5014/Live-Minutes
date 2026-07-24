@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Design tokens — cool-slate neutrals · deep teal brand ·
+   warm amber = 中文語言軌 · coral = LIVE 錄音訊號
+   (與 docs/live-minutes-plan.html 一致)
+   ============================================================ */
+:root {
+  --paper:#F4F6F7; --surface:#FFFFFF; --surface-2:#EDF1F3;
+  --ink:#0F1720; --body:#2A333D; --muted:#5E6874; --faint:#8B949F;
+  --border:#E2E7EB; --border-strong:#CBD3D9;
+  --brand:#0C8F94; --brand-ink:#076C70; --brand-tint:#E1F2F2;
+  --zh:#B26A12; --zh-ink:#8A5410; --zh-tint:#F8EDD9;
+  --live:#D9363E; --live-tint:#FBE5E6;
+  --ok:#2E8B57; --ok-tint:#E3F2E9; --warn:#B9722A; --warn-tint:#F8ECDD;
+  --s1:#0C8F94; --s2:#B26A12; --s3:#5D50D6; --s4:#B23A78; --s5:#2E6FB0; --s6:#2E8B57;
+  --shadow-sm:0 1px 2px rgba(16,23,32,.06), 0 1px 3px rgba(16,23,32,.05);
+  --shadow-md:0 6px 20px rgba(16,23,32,.08), 0 2px 6px rgba(16,23,32,.05);
+  --shadow-lg:0 24px 60px rgba(16,23,32,.14), 0 8px 24px rgba(16,23,32,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper:#0A0E13; --surface:#141A21; --surface-2:#1B222B;
+    --ink:#EDF1F5; --body:#C2CBD4; --muted:#8A95A0; --faint:#69737D;
+    --border:#242E38; --border-strong:#334049;
+    --brand:#25C6CC; --brand-ink:#7BE4E8; --brand-tint:rgba(37,198,204,.12);
+    --zh:#E1A85C; --zh-ink:#F0C489; --zh-tint:rgba(225,168,92,.14);
+    --live:#FF5A60; --live-tint:rgba(255,90,96,.14);
+    --ok:#49B87C; --ok-tint:rgba(73,184,124,.14); --warn:#E1A85C; --warn-tint:rgba(225,168,92,.14);
+    --s1:#2CC7CD; --s2:#E1A85C; --s3:#9A8CFF; --s4:#F06AA6; --s5:#6BA6E6; --s6:#4FC98A;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:0 8px 24px rgba(0,0,0,.5);
+    --shadow-lg:0 28px 70px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="light"] {
+  --paper:#F4F6F7; --surface:#FFFFFF; --surface-2:#EDF1F3;
+  --ink:#0F1720; --body:#2A333D; --muted:#5E6874; --faint:#8B949F;
+  --border:#E2E7EB; --border-strong:#CBD3D9;
+  --brand:#0C8F94; --brand-ink:#076C70; --brand-tint:#E1F2F2;
+  --zh:#B26A12; --zh-ink:#8A5410; --zh-tint:#F8EDD9;
+  --live:#D9363E; --live-tint:#FBE5E6;
+  --ok:#2E8B57; --ok-tint:#E3F2E9; --warn:#B9722A; --warn-tint:#F8ECDD;
+  --s1:#0C8F94; --s2:#B26A12; --s3:#5D50D6; --s4:#B23A78; --s5:#2E6FB0; --s6:#2E8B57;
+  --shadow-sm:0 1px 2px rgba(16,23,32,.06), 0 1px 3px rgba(16,23,32,.05);
+  --shadow-md:0 6px 20px rgba(16,23,32,.08), 0 2px 6px rgba(16,23,32,.05);
+  --shadow-lg:0 24px 60px rgba(16,23,32,.14), 0 8px 24px rgba(16,23,32,.08);
+}
+:root[data-theme="dark"] {
+  --paper:#0A0E13; --surface:#141A21; --surface-2:#1B222B;
+  --ink:#EDF1F5; --body:#C2CBD4; --muted:#8A95A0; --faint:#69737D;
+  --border:#242E38; --border-strong:#334049;
+  --brand:#25C6CC; --brand-ink:#7BE4E8; --brand-tint:rgba(37,198,204,.12);
+  --zh:#E1A85C; --zh-ink:#F0C489; --zh-tint:rgba(225,168,92,.14);
+  --live:#FF5A60; --live-tint:rgba(255,90,96,.14);
+  --ok:#49B87C; --ok-tint:rgba(73,184,124,.14); --warn:#E1A85C; --warn-tint:rgba(225,168,92,.14);
+  --s1:#2CC7CD; --s2:#E1A85C; --s3:#9A8CFF; --s4:#F06AA6; --s5:#6BA6E6; --s6:#4FC98A;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 8px 24px rgba(0,0,0,.5);
+  --shadow-lg:0 28px 70px rgba(0,0,0,.6);
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--body);
+    font-family: theme('fontFamily.sans');
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+  h1, h2, h3, h4 { color: var(--ink); }
+  :focus-visible { outline: 2.5px solid var(--brand); outline-offset: 2px; border-radius: 6px; }
+  button { font: inherit; }
+}
+
+@layer utilities {
+  .tnum { font-variant-numeric: tabular-nums; }
+  .safe-b { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-t { padding-top: env(safe-area-inset-top); }
+}
+
+/* Animations */
+@keyframes ping { 0% { transform: scale(.6); opacity:.9 } 80%,100% { transform: scale(1.9); opacity:0 } }
+@keyframes wv { 0%,100% { height:22% } 50% { height:96% } }
+@keyframes blink { 50% { opacity:0 } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
