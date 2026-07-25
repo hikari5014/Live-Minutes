@@ -1,6 +1,6 @@
 {
   "name": "live-minutes",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "private": true,
   "type": "module",
   "description": "跨裝置雙語即時字幕 + AI 會議紀錄 PWA（GitHub → Cloudflare）",
@@ -11,6 +11,7 @@
     "typecheck": "tsc -b --noEmit && tsc -p worker/tsconfig.json --noEmit",
     "worker:dev": "wrangler dev",
     "worker:typecheck": "tsc -p worker/tsconfig.json --noEmit",
+    "test": "vitest run",
     "deploy": "npm run build && wrangler deploy",
     "db:init": "wrangler d1 execute live_minutes --file=./schema.sql"
   },
@@ -28,11 +29,13 @@
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.13",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
     "vite-plugin-pwa": "^0.20.5",
+    "vitest": "^4.1.10",
     "wrangler": "^3.80.0"
   }
 }
