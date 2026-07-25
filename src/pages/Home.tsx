@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../state/store'
 import { engine } from '../lib/engine'
 import { LANG_LIST, LANGS, targetLabel } from '../lib/langs'
-import { listSessions, listFolders, updateSessionMeta, deleteSession, createFolder, saveSession, getDraft, clearDraft } from '../lib/history'
+import { listSessions, listFolders, updateSessionMeta, deleteSession, createFolder, saveSession, getDraft, clearDraft, searchSessions } from '../lib/history'
 import type { Folder, LangCode, SessionMeta, TargetLang } from '../lib/types'
 import { TopBar } from '../components/TopBar'
 import { Toggle } from '../components/Toggle'
@@ -22,6 +22,7 @@ export default function Home() {
   const [moving, setMoving] = useState<SessionMeta | null>(null)
   const [blockMsg, setBlockMsg] = useState<string | null>(null)
   const [recovered, setRecovered] = useState(false)
+  const [query, setQuery] = useState('')
 
   // Recover an in-progress recording that never ended cleanly (crash / closed tab).
   useEffect(() => {
@@ -60,6 +61,7 @@ export default function Home() {
   }
 
   const folderName = (id?: string | null) => (id ? folders.find((f) => f.id === id)?.name : undefined)
+  const shown = useMemo(() => (query.trim() ? searchSessions(query) : sessions), [query, sessions])
 
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
@@ -146,8 +148,17 @@ export default function Home() {
         {sessions.length > 0 && (
           <section className="mt-2">
             <div className="mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wider text-faint">最近的會議</div>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="搜尋標題或逐字稿…"
+              className="mb-2 w-full rounded-xl border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-faint"
+            />
             <div className="grid gap-2">
-              {sessions.map((s) => (
+              {shown.length === 0 && (
+                <div className="rounded-xl border border-line bg-surface p-4 text-center text-[12.5px] text-faint">找不到符合的會議</div>
+              )}
+              {shown.map((s) => (
                 <SwipeRow
                   key={s.id}
                   onTap={() => nav(`/minutes/${s.id}`)}

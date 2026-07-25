@@ -31,6 +31,16 @@ export function listSessions(): SessionMeta[] {
     .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.createdAt - a.createdAt)
 }
 
+export function searchSessions(q: string): SessionMeta[] {
+  const query = q.trim().toLowerCase()
+  if (!query) return listSessions()
+  return listSessions().filter((s) => {
+    if (s.title.toLowerCase().includes(query)) return true
+    const utts = read<Utterance[]>(sessionKey(s.id), [])
+    return utts.some((u) => u.source.toLowerCase().includes(query) || (u.translation ?? '').toLowerCase().includes(query))
+  })
+}
+
 export function listArchived(): SessionMeta[] {
   return read<SessionMeta[]>(INDEX_KEY, [])
     .filter((s) => s.archived)
