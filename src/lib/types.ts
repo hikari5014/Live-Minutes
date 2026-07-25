@@ -30,6 +30,7 @@ export interface MeetingSettings {
   fontTranslation: number // 譯文字級 1..5
   translateChunkChars: number // 0 = 逐句即時；>0 = 合併到約 N 字再翻譯
   translateMaxWaitSec: number // 批次翻譯的最長等待秒數
+  minutesLang: string // AI 會議紀錄輸出語言（zh-Hant / en / …）
 }
 
 export interface Utterance {

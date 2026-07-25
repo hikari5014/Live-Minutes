@@ -16,6 +16,7 @@ const defaultSettings: MeetingSettings = {
   fontTranslation: 2,
   translateChunkChars: 0,
   translateMaxWaitSec: 3,
+  minutesLang: 'zh-Hant',
 }
 
 function loadSettings(): MeetingSettings {

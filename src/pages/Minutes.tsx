@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getSession, getMinutes, saveMinutes, updateSessionMeta, updateUtterances, saveSession, getBackupKey, exportOne } from '../lib/history'
 import { requestMinutesFromTranscript, fetchSession, pushBackup } from '../lib/api'
+import { useStore } from '../state/store'
 import { transcriptText, minutesMarkdown, downloadText } from '../lib/minutes'
 import { TopBar } from '../components/TopBar'
 import { ChevronLeft, Sparkles, Download, Users, Calendar } from '../components/icons'
@@ -25,9 +26,39 @@ function Bullet() {
   return <span className="mt-1.5 h-1.5 w-1.5 flex-none rounded-full" style={{ background: 'var(--brand)' }} />
 }
 
+const MINUTES_LANGS = [
+  { v: 'zh-Hant', label: '繁中' },
+  { v: 'zh-Hans', label: '简中' },
+  { v: 'en', label: 'EN' },
+  { v: 'ja', label: '日本語' },
+  { v: 'ko', label: '한국어' },
+  { v: 'de', label: 'DE' },
+  { v: 'fr', label: 'FR' },
+  { v: 'es', label: 'ES' },
+]
+
+function LangSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="會議紀錄語言"
+      className="rounded-lg border border-line bg-surface px-2 py-1.5 text-[12px] font-bold text-ink"
+    >
+      {MINUTES_LANGS.map((l) => (
+        <option key={l.v} value={l.v}>
+          {l.label}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 export default function Minutes() {
   const { id = '' } = useParams()
   const nav = useNavigate()
+  const settings = useStore((st) => st.settings)
+  const setSettings = useStore((st) => st.setSettings)
   const local = getSession(id)
   const [data, setData] = useState<{ meta: SessionMeta; utterances: Utterance[] } | null>(local)
   const [minutes, setMinutes] = useState<MinutesDoc | null>(() => getMinutes(id))
@@ -123,7 +154,7 @@ export default function Minutes() {
     setError(null)
     try {
       const text = transcriptText(utts, withTr)
-      const doc = await requestMinutesFromTranscript(text, title || meta.title, 'zh-Hant')
+      const doc = await requestMinutesFromTranscript(text, title || meta.title, settings.minutesLang)
       saveMinutes(id, doc)
       setMinutes(doc)
       syncBackup()
@@ -227,20 +258,27 @@ export default function Minutes() {
                   </ul>
                 </Block>
               ))}
-              <button
-                onClick={generate}
-                disabled={generating || utts.length === 0}
-                className="no-print inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface py-2 text-[12.5px] font-bold text-brand-ink disabled:opacity-60"
-              >
-                <Sparkles className="h-4 w-4" />
-                {generating ? '重新生成中…' : '重新生成紀錄'}
-              </button>
+              <div className="no-print flex items-center gap-2">
+                <LangSelect value={settings.minutesLang} onChange={(v) => setSettings({ minutesLang: v })} />
+                <button
+                  onClick={generate}
+                  disabled={generating || utts.length === 0}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface py-2 text-[12.5px] font-bold text-brand-ink disabled:opacity-60"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  {generating ? '重新生成中…' : '重新生成紀錄'}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="rounded-2xl border border-line bg-surface p-5 text-center">
               <Sparkles className="mx-auto h-6 w-6 text-brand-ink" />
               <div className="mt-2 text-sm font-bold text-ink">尚未生成 AI 會議紀錄</div>
               <p className="mt-1 text-[12.5px] text-muted">用 Gemini 把逐字稿整理成摘要、決議與待辦。</p>
+              <div className="mt-3 flex items-center justify-center gap-2">
+                <span className="text-[12px] text-muted">語言</span>
+                <LangSelect value={settings.minutesLang} onChange={(v) => setSettings({ minutesLang: v })} />
+              </div>
               <button
                 onClick={generate}
                 disabled={generating || utts.length === 0}
