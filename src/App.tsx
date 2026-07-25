@@ -4,6 +4,7 @@ import Live from './pages/Live'
 import RoomView from './pages/RoomView'
 import Minutes from './pages/Minutes'
 import Settings from './pages/Settings'
+import About from './pages/About'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
       <Route path="/m/:id" element={<RoomView />} />
       <Route path="/minutes/:id" element={<Minutes />} />
       <Route path="/settings" element={<Settings />} />
+      <Route path="/about" element={<About />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   )

@@ -23,6 +23,13 @@ export default function Home() {
   const [blockMsg, setBlockMsg] = useState<string | null>(null)
   const [recovered, setRecovered] = useState(false)
   const [query, setQuery] = useState('')
+  const [onboard, setOnboard] = useState(() => {
+    try {
+      return !localStorage.getItem('lm-onboarded')
+    } catch {
+      return false
+    }
+  })
 
   // Recover an in-progress recording that never ended cleanly (crash / closed tab).
   useEffect(() => {
@@ -40,6 +47,15 @@ export default function Home() {
   function reload() {
     setSessions(listSessions())
     setFolders(listFolders())
+  }
+
+  function dismissOnboard() {
+    try {
+      localStorage.setItem('lm-onboarded', '1')
+    } catch {
+      /* ignore */
+    }
+    setOnboard(false)
   }
 
   async function start() {
@@ -73,6 +89,19 @@ export default function Home() {
             style={{ borderLeft: '4px solid var(--warn)', background: 'var(--warn-tint)', color: 'var(--warn)' }}
           >
             已自動救回上次未正常結束的錄音，存到下方「最近的會議」。
+          </div>
+        )}
+        {onboard && (
+          <div className="mt-4 rounded-2xl border border-line bg-surface p-4">
+            <div className="text-[13px] font-extrabold text-ink">歡迎使用 Live Minutes 👋</div>
+            <ul className="mt-2 grid gap-1 text-[12px] text-muted">
+              <li>• 選語言模式：外語→中文、中文→外語、純逐字稿，或多語言自動偵測。</li>
+              <li>• 按「開始錄音」需允許麥克風權限，並請保持螢幕開啟。</li>
+              <li>• 用「分享連結」讓同事看自己語言的字幕；散會可生成 AI 紀錄。</li>
+            </ul>
+            <button onClick={dismissOnboard} className="mt-3 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-extrabold text-white">
+              開始使用
+            </button>
           </div>
         )}
         <section className="pt-4">

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ChangeEvent, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../state/store'
 import { TopBar } from '../components/TopBar'
@@ -21,6 +21,7 @@ import {
   importBackup,
 } from '../lib/history'
 import { shortDate, durationLabel } from '../lib/format'
+import { downloadText } from '../lib/minutes'
 import type { CaptionOrder, Folder } from '../lib/types'
 
 function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
@@ -279,7 +280,10 @@ export default function Settings() {
           </Section>
         </div>
 
-        <p className="mt-5 text-center text-[11px] text-faint">Live Minutes · v{__APP_VERSION__}</p>
+        <button onClick={() => nav('/about')} className="mt-5 block w-full text-center text-[12px] font-semibold text-brand-ink">
+          關於與資料 · 隱私說明
+        </button>
+        <p className="mt-3 text-center text-[11px] text-faint">Live Minutes · v{__APP_VERSION__}</p>
       </main>
     </div>
   )
@@ -404,6 +408,24 @@ function BackupSection() {
       })
       .catch(() => undefined)
   }
+  function exportFile() {
+    downloadText('live-minutes-backup.json', JSON.stringify(exportAll()))
+  }
+  function importFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const items = JSON.parse(String(reader.result)) as { id: string; payload: string }[]
+        setStatus(`已從檔案匯入 ${importBackup(items)} 場會議。`)
+      } catch {
+        setStatus('匯入失敗：檔案格式不正確。')
+      }
+    }
+    reader.readAsText(file)
+  }
 
   return (
     <div className="grid gap-3">
@@ -436,6 +458,15 @@ function BackupSection() {
             還原
           </button>
         </div>
+      </div>
+      <div className="flex gap-2">
+        <button onClick={exportFile} className="flex-1 rounded-lg border border-line py-2 text-[12px] font-bold text-ink">
+          匯出檔案
+        </button>
+        <label className="flex-1 cursor-pointer rounded-lg border border-line py-2 text-center text-[12px] font-bold text-ink">
+          匯入檔案
+          <input type="file" accept="application/json,.json" onChange={importFile} className="hidden" />
+        </label>
       </div>
       {status && <div className="text-[12px] text-brand-ink">{status}</div>}
       <p className="text-[10.5px] leading-relaxed text-faint">⚠️ 備份碼等同存取權，請勿外流；備份以明文存放於你的 Cloudflare D1。</p>
