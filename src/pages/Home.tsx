@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../state/store'
 import { engine } from '../lib/engine'
+import { fetchUsage } from '../lib/api'
 import { LANG_LIST, LANGS, targetLabel } from '../lib/langs'
-import { listSessions, listFolders, updateSessionMeta, deleteSession, createFolder, saveSession, getDraft, clearDraft, searchSessions } from '../lib/history'
+import { listSessions, listFolders, updateSessionMeta, deleteSession, createFolder, saveSession, getDraft, clearDraft, searchSessions, exportOne, importBackup } from '../lib/history'
+
+let quotaChecked = false
 import type { Folder, LangCode, SessionMeta, TargetLang } from '../lib/types'
 import { TopBar } from '../components/TopBar'
 import { Toggle } from '../components/Toggle'
@@ -30,6 +33,22 @@ export default function Home() {
       return false
     }
   })
+  const [deleted, setDeleted] = useState<{ blob: { id: string; payload: string; updatedAt: number }; title: string } | null>(null)
+  const [quotaWarn, setQuotaWarn] = useState<string | null>(null)
+  const undoTimer = useRef<number | null>(null)
+
+  // One-time quota guardrail: warn if DeepL is nearly exhausted or Deepgram is low.
+  useEffect(() => {
+    if (quotaChecked) return
+    quotaChecked = true
+    fetchUsage().then((u) => {
+      if (!u) return
+      if (u.deepl.configured && u.deepl.limit && (u.deepl.used ?? 0) / u.deepl.limit > 0.9)
+        setQuotaWarn('DeepL 翻譯額度即將用盡（已用 >90%）。可改用「不翻譯（純逐字稿）」模式，或補充額度。')
+      else if (u.deepgram.configured && u.deepgram.balance != null && u.deepgram.balance < 5)
+        setQuotaWarn('Deepgram 餘額偏低，可能影響高品質辨識與多語言偵測。')
+    })
+  }, [])
 
   // Recover an in-progress recording that never ended cleanly (crash / closed tab).
   useEffect(() => {
@@ -56,6 +75,24 @@ export default function Home() {
       /* ignore */
     }
     setOnboard(false)
+  }
+
+  function removeMeeting(s: SessionMeta) {
+    const blob = exportOne(s.id)
+    deleteSession(s.id)
+    reload()
+    if (blob) {
+      setDeleted({ blob, title: s.title })
+      if (undoTimer.current) window.clearTimeout(undoTimer.current)
+      undoTimer.current = window.setTimeout(() => setDeleted(null), 5000)
+    }
+  }
+  function undoDelete() {
+    if (!deleted) return
+    importBackup([deleted.blob])
+    reload()
+    setDeleted(null)
+    if (undoTimer.current) window.clearTimeout(undoTimer.current)
   }
 
   async function start() {
@@ -89,6 +126,14 @@ export default function Home() {
             style={{ borderLeft: '4px solid var(--warn)', background: 'var(--warn-tint)', color: 'var(--warn)' }}
           >
             已自動救回上次未正常結束的錄音，存到下方「最近的會議」。
+          </div>
+        )}
+        {quotaWarn && (
+          <div
+            className="mt-4 rounded-xl border border-line px-3 py-2 text-[12.5px]"
+            style={{ borderLeft: '4px solid var(--warn)', background: 'var(--warn-tint)', color: 'var(--warn)' }}
+          >
+            {quotaWarn}
           </div>
         )}
         {onboard && (
@@ -213,15 +258,7 @@ export default function Home() {
                         reload()
                       },
                     },
-                    {
-                      icon: 'delete',
-                      label: '刪除',
-                      color: 'var(--live)',
-                      onAction: () => {
-                        deleteSession(s.id)
-                        reload()
-                      },
-                    },
+                    { icon: 'delete', label: '刪除', color: 'var(--live)', onAction: () => removeMeeting(s) },
                   ]}
                 >
                   <div className="flex items-center gap-3 bg-surface p-3">
@@ -286,6 +323,15 @@ export default function Home() {
               我知道了
             </button>
           </div>
+        </div>
+      )}
+
+      {deleted && (
+        <div className="fixed inset-x-4 bottom-4 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3 shadow-lg">
+          <span className="min-w-0 flex-1 truncate text-[13px] text-ink">已刪除「{deleted.title}」</span>
+          <button onClick={undoDelete} className="flex-none rounded-lg bg-brand px-3 py-1.5 text-[12px] font-extrabold text-white">
+            復原
+          </button>
         </div>
       )}
     </div>
