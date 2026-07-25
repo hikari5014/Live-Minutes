@@ -27,6 +27,17 @@ export const Stop = (p: P) => (
     <rect x="6" y="6" width="12" height="12" rx="2" />
   </Svg>
 )
+export const Pause = (p: P) => (
+  <Svg {...p}>
+    <rect x="6" y="5" width="4" height="14" rx="1" />
+    <rect x="14" y="5" width="4" height="14" rx="1" />
+  </Svg>
+)
+export const Play = (p: P) => (
+  <Svg {...p}>
+    <path d="M7 5l12 7-12 7z" />
+  </Svg>
+)
 export const Share = (p: P) => (
   <Svg {...p}>
     <path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7" />

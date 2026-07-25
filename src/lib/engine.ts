@@ -59,6 +59,7 @@ class MeetingEngine {
   private flushTimer: number | null = null
   private pretoken: string | null = null
   private lastDraft = 0
+  private pauseStart = 0
 
   // Whether Deepgram can be used right now (backend up + token grantable).
   // Gates the multilingual auto-detect mode before a meeting can start.
@@ -119,9 +120,21 @@ class MeetingEngine {
       })
     }
 
+    const ok = await this.startAsr()
+    if (!ok) {
+      this.abortStart()
+      return false
+    }
+    return true
+  }
+
+  // Build and start the ASR engine for the current settings. Shared by start()
+  // and resume(). Returns false if a required provider (Deepgram for auto-detect)
+  // is unavailable.
+  private async startAsr(): Promise<boolean> {
+    const s = useStore.getState().settings
     const cb = this.callbacks()
     const src = LANGS[s.sourceLang]
-
     let asr: ASREngine | null = null
     if (s.autoDetect) {
       // Multilingual auto-detect: Deepgram only (Web Speech can't detect language).
@@ -129,7 +142,6 @@ class MeetingEngine {
       this.pretoken = null
       if (!tok) {
         useStore.getState().setError('多語言自動偵測需要啟用 Deepgram。')
-        this.abortStart()
         return false
       }
       asr = new DeepgramASR('multi', cb, tok, { detectLanguage: true })
@@ -150,6 +162,37 @@ class MeetingEngine {
     this.asr = asr
     await asr.start()
     return true
+  }
+
+  // Pause recording: stop ASR + the clock (paused time is excluded from the
+  // duration) while keeping the room and session alive. Resume restarts ASR.
+  pause(): void {
+    if (useStore.getState().paused) return
+    if (this.timer) {
+      clearInterval(this.timer)
+      this.timer = null
+    }
+    if (this.flushTimer !== null) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = null
+    }
+    this.flush()
+    this.asr?.stop()
+    this.asr = null
+    this.pauseStart = Date.now()
+    useStore.getState().setInterim(null)
+    useStore.getState().setPaused(true)
+  }
+
+  async resume(): Promise<void> {
+    if (!useStore.getState().paused) return
+    useStore.getState().addPausedMs(Date.now() - this.pauseStart)
+    this.pauseStart = 0
+    this.fellBack = false
+    useStore.getState().setPaused(false)
+    if (!this.timer) this.timer = window.setInterval(() => useStore.getState().tick(), 1000)
+    const ok = await this.startAsr()
+    if (!ok) useStore.getState().setPaused(true)
   }
 
   private callbacks(): ASRCallbacks {

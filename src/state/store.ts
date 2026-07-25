@@ -42,6 +42,8 @@ export interface AppState {
   micReady: boolean
   isHost: boolean
   backendReady: boolean
+  paused: boolean
+  pausedMs: number
 
   setSettings: (patch: Partial<MeetingSettings>) => void
   startSession: (roomId: string, startedAt: number, isHost: boolean) => void
@@ -56,6 +58,8 @@ export interface AppState {
   setViewers: (n: number) => void
   setMicReady: (b: boolean) => void
   setBackendReady: (b: boolean) => void
+  setPaused: (b: boolean) => void
+  addPausedMs: (ms: number) => void
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -71,6 +75,8 @@ export const useStore = create<AppState>((set) => ({
   micReady: false,
   isHost: true,
   backendReady: false,
+  paused: false,
+  pausedMs: 0,
 
   setSettings: (patch) =>
     set((s) => {
@@ -95,6 +101,8 @@ export const useStore = create<AppState>((set) => ({
       viewers: 0,
       error: null,
       micReady: false,
+      paused: false,
+      pausedMs: 0,
     }),
 
   resetSession: () =>
@@ -108,11 +116,14 @@ export const useStore = create<AppState>((set) => ({
       viewers: 0,
       error: null,
       micReady: false,
+      paused: false,
+      pausedMs: 0,
     }),
 
   setStatus: (status) => set({ status }),
   setError: (error) => set(error ? { error, status: 'error' } : { error: null }),
-  tick: () => set((s) => ({ elapsedSec: s.startedAt ? Math.floor((Date.now() - s.startedAt) / 1000) : s.elapsedSec })),
+  tick: () =>
+    set((s) => ({ elapsedSec: s.startedAt ? Math.max(0, Math.floor((Date.now() - s.startedAt - s.pausedMs) / 1000)) : s.elapsedSec })),
   addFinal: (u) => set((s) => ({ utterances: [...s.utterances, u] })),
   updateUtterance: (id, patch) =>
     set((s) => ({ utterances: s.utterances.map((u) => (u.id === id ? { ...u, ...patch } : u)) })),
@@ -121,4 +132,6 @@ export const useStore = create<AppState>((set) => ({
   setViewers: (viewers) => set({ viewers }),
   setMicReady: (micReady) => set({ micReady }),
   setBackendReady: (backendReady) => set({ backendReady }),
+  setPaused: (paused) => set({ paused }),
+  addPausedMs: (ms) => set((s) => ({ pausedMs: s.pausedMs + ms })),
 }))

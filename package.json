@@ -1,6 +1,6 @@
 {
   "name": "live-minutes",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "private": true,
   "type": "module",
   "description": "跨裝置雙語即時字幕 + AI 會議紀錄 PWA（GitHub → Cloudflare）",
