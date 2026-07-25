@@ -4,6 +4,7 @@ import type { Folder, MinutesDoc, SessionMeta, Utterance } from './types'
 
 const INDEX_KEY = 'lm-sessions'
 const FOLDERS_KEY = 'lm-folders'
+const DRAFT_KEY = 'lm-draft'
 const sessionKey = (id: string) => `lm-session:${id}`
 const minutesKey = (id: string) => `lm-minutes:${id}`
 
@@ -116,4 +117,22 @@ export function deleteFolder(id: string): void {
     FOLDERS_KEY,
     read<Folder[]>(FOLDERS_KEY, []).filter((f) => f.id !== id),
   )
+}
+
+// ---- In-progress draft (crash / close recovery) ----
+
+export function saveDraft(meta: SessionMeta, utterances: Utterance[]): void {
+  write(DRAFT_KEY, { meta, utterances })
+}
+
+export function getDraft(): { meta: SessionMeta; utterances: Utterance[] } | null {
+  return read<{ meta: SessionMeta; utterances: Utterance[] } | null>(DRAFT_KEY, null)
+}
+
+export function clearDraft(): void {
+  try {
+    localStorage.removeItem(DRAFT_KEY)
+  } catch {
+    /* ignore */
+  }
 }

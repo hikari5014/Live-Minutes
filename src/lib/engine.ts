@@ -7,7 +7,7 @@ import { WebSpeechASR, type ASRCallbacks, type ASREngine } from './asr'
 import { DeepgramASR } from './asr-deepgram'
 import { backendAvailable, getDeepgramToken, translateText, translateDetect } from './api'
 import { enableWakeLock, disableWakeLock } from './wakelock'
-import { saveSession } from './history'
+import { saveSession, saveDraft, clearDraft } from './history'
 import { joinAsHost, type HostRoom } from './room'
 import type { SessionMeta, Utterance } from './types'
 
@@ -58,6 +58,7 @@ class MeetingEngine {
   private pending: { text: string; speaker: number | null; ts: number } | null = null
   private flushTimer: number | null = null
   private pretoken: string | null = null
+  private lastDraft = 0
 
   // Whether Deepgram can be used right now (backend up + token grantable).
   // Gates the multilingual auto-detect mode before a meeting can start.
@@ -92,6 +93,7 @@ class MeetingEngine {
     this.prepareRoomId() // always begin a fresh room: resets timer, utterances, id
     this.fellBack = false
     this.pending = null
+    this.lastDraft = 0
     if (this.flushTimer !== null) {
       clearTimeout(this.flushTimer)
       this.flushTimer = null
@@ -209,6 +211,14 @@ class MeetingEngine {
     this.host?.publishFinal(u)
     this.host?.publishInterim(null, '')
 
+    // Persist an in-progress draft (throttled) so a crash/close mid-meeting
+    // doesn't lose the transcript. Cleared on a normal stop().
+    const now = Date.now()
+    if (now - this.lastDraft > 3000) {
+      this.lastDraft = now
+      saveDraft(buildMeta(), useStore.getState().utterances)
+    }
+
     if (s.autoDetect) {
       // Auto mode: Chinese stays as-is; everything else is translated to Chinese.
       if (lang && /^zh/i.test(lang)) return
@@ -290,6 +300,7 @@ class MeetingEngine {
     st.setInterim(null)
     const meta = buildMeta()
     saveSession(meta, st.utterances)
+    clearDraft() // meeting ended cleanly — drop the recovery draft
     st.resetSession() // clear live state so the next recording starts fresh
     return meta
   }

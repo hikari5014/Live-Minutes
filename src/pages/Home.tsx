@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../state/store'
 import { engine } from '../lib/engine'
 import { LANG_LIST, LANGS, targetLabel } from '../lib/langs'
-import { listSessions, listFolders, updateSessionMeta, deleteSession, createFolder } from '../lib/history'
+import { listSessions, listFolders, updateSessionMeta, deleteSession, createFolder, saveSession, getDraft, clearDraft } from '../lib/history'
 import type { Folder, LangCode, SessionMeta, TargetLang } from '../lib/types'
 import { TopBar } from '../components/TopBar'
 import { Toggle } from '../components/Toggle'
@@ -21,6 +21,20 @@ export default function Home() {
   const [folders, setFolders] = useState<Folder[]>(() => listFolders())
   const [moving, setMoving] = useState<SessionMeta | null>(null)
   const [blockMsg, setBlockMsg] = useState<string | null>(null)
+  const [recovered, setRecovered] = useState(false)
+
+  // Recover an in-progress recording that never ended cleanly (crash / closed tab).
+  useEffect(() => {
+    const d = getDraft()
+    if (d && d.utterances.length > 0) {
+      saveSession(d.meta, d.utterances)
+      clearDraft()
+      setSessions(listSessions())
+      setRecovered(true)
+    } else if (d) {
+      clearDraft()
+    }
+  }, [])
 
   function reload() {
     setSessions(listSessions())
@@ -51,6 +65,14 @@ export default function Home() {
     <div className="flex min-h-dvh flex-col bg-paper">
       <TopBar />
       <main className="safe-b mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-10">
+        {recovered && (
+          <div
+            className="mt-4 rounded-xl border border-line px-3 py-2 text-[12.5px]"
+            style={{ borderLeft: '4px solid var(--warn)', background: 'var(--warn-tint)', color: 'var(--warn)' }}
+          >
+            已自動救回上次未正常結束的錄音，存到下方「最近的會議」。
+          </div>
+        )}
         <section className="pt-4">
           <h1 className="text-[26px] font-extrabold tracking-tight text-ink">開始一場會議</h1>
           <p className="mt-1 text-[15px] text-muted">即時雙語字幕 · 分享連結 · AI 會議紀錄</p>
