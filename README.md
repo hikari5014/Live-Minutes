@@ -13,13 +13,22 @@ npm run dev        # http://localhost:5173 — 純前端即可用 Web Speech 即
 
 完整全端（房間、翻譯、AI 紀錄）與部署到 Cloudflare，見 **[DEPLOY.md](DEPLOY.md)**。
 
-## 目前狀態
+## 目前狀態 · v1.0.0 已上線
 
-- ✅ 前端 PWA：可安裝、即時字幕（Web Speech，零後端）、語言模式、設定開關、分享 UI、AI 紀錄頁
-- ✅ 後端 Worker：Durable Object 房間（WS 中繼 + 廣播）、D1 儲存、DeepL / Gemini / Deepgram 串接
-- ✅ **已部署上線**：<https://live-minutes.mark-lu.workers.dev>（D1 已建表；DeepL、Gemini、Deepgram 三項金鑰皆已設定並線上實測通過）
+**➡️ <https://live-minutes.mark-lu.workers.dev>**（手機開啟 → 加入主畫面即為 App）
 
-前端與後端皆通過建置與型別檢查；`wrangler --dry-run` 綁定驗證通過。線上端點 `health / translate / minutes / token` 與 SPA 分享路由實測正常。
+前後端皆通過 typecheck、`npm test`（15 項單元測試）、線上端點實測。已完成：
+
+- **即時字幕**：Web Speech（免費）＋ Deepgram（高品質＋語者分離）自動切換、斷線自動重連；iOS 優先走 Deepgram。
+- **語言模式**：外語→中文、中文→外語、純逐字稿不翻，及**多語言自動偵測→中文**（需 Deepgram，未啟用會擋下並提示）。
+- **翻譯**：DeepL，可設定分段長度/頻率省額度；額度快用盡會警示。
+- **會議房間**：Durable Object 中繼＋每位觀看者自選語言；**觀看者介面依瀏覽器語言在地化**（中/英/日/韓/德/法/西）。
+- **AI 紀錄**：Gemini 結構化輸出、**長逐字稿自動分段 map-reduce**、可選輸出語言、可重新生成。
+- **可編輯**：改標題、命名發言者、修逐字稿。
+- **會議管理**：滑動封存/刪除（可復原）/釘選/移動、分類資料夾、搜尋（標題＋逐字稿）。
+- **可靠性**：錄音中自動存草稿、重開自動救回；API 同源限制＋每 IP 限流保護額度。
+- **雲端備份（B 方案）**：用備份碼把會議存到 D1、換裝置還原；另可匯出/匯入 JSON 檔。
+- **PWA**：可安裝、離線殼、Wake Lock、暫停/繼續錄音、隱私說明頁、首次引導。
 
 ## 語言模式與會議開關
 
