@@ -1,5 +1,8 @@
 // Room WebSocket client. Host publishes finalized captions; viewers receive
 // broadcasts translated to their chosen language. Talks to /api/room/:id.
+// Both sides reconnect with exponential backoff; on reconnect the viewer
+// re-says hello and the DO replies with a fresh sync (backlog), so a dropped
+// connection self-heals instead of freezing the captions.
 import type { ClientMsg, ServerMsg, WireCaption } from './protocol'
 import type { Interim, TargetLang, Utterance } from './types'
 
@@ -11,6 +14,9 @@ function wsUrl(roomId: string): string {
 function toUtterance(m: WireCaption): Utterance {
   return { id: m.id, speaker: m.speaker, source: m.source, translation: m.translation, ts: m.ts, final: true }
 }
+
+const MAX_RETRIES = 10
+const backoff = (n: number) => Math.min(8000, 500 * 2 ** n)
 
 // ---- Host ----
 export interface HostRoom {
@@ -28,35 +34,48 @@ export interface HostOpts {
 }
 
 export function joinAsHost(roomId: string, opts: HostOpts): HostRoom {
-  let ws: WebSocket | null = new WebSocket(wsUrl(roomId))
+  let ws: WebSocket | null = null
   let open = false
+  let closed = false
+  let retries = 0
   const queue: ClientMsg[] = []
   const send = (m: ClientMsg) => {
     if (open && ws) ws.send(JSON.stringify(m))
-    else queue.push(m)
-  }
-  ws.onopen = () => {
-    open = true
-    ws?.send(JSON.stringify({ t: 'hello', role: 'host', source: opts.source, target: opts.target, title: opts.title }))
-    queue.splice(0).forEach((m) => ws?.send(JSON.stringify(m)))
-  }
-  ws.onmessage = (e) => {
-    try {
-      const msg = JSON.parse(e.data as string) as ServerMsg
-      if (msg.t === 'meta' || msg.t === 'sync') opts.onViewers(msg.viewers)
-    } catch {
-      /* ignore */
+    else {
+      queue.push(m)
+      if (queue.length > 1000) queue.shift()
     }
   }
-  ws.onerror = () => opts.onError?.('房間連線發生問題')
-  ws.onclose = () => {
-    open = false
+  const connect = () => {
+    ws = new WebSocket(wsUrl(roomId))
+    ws.onopen = () => {
+      open = true
+      retries = 0
+      ws?.send(JSON.stringify({ t: 'hello', role: 'host', source: opts.source, target: opts.target, title: opts.title }))
+      queue.splice(0).forEach((m) => ws?.send(JSON.stringify(m)))
+    }
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data as string) as ServerMsg
+        if (msg.t === 'meta' || msg.t === 'sync') opts.onViewers(msg.viewers)
+      } catch {
+        /* ignore */
+      }
+    }
+    ws.onerror = () => opts.onError?.('房間連線發生問題')
+    ws.onclose = () => {
+      open = false
+      if (closed || retries >= MAX_RETRIES) return
+      window.setTimeout(connect, backoff(retries++))
+    }
   }
+  connect()
   return {
     publishFinal: (u) => send({ t: 'final', id: u.id, speaker: u.speaker, source: u.source, ts: u.ts }),
     publishInterim: (speaker, source) => send({ t: 'interim', speaker, source }),
     end: () => send({ t: 'end' }),
     close: () => {
+      closed = true
       try {
         ws?.close()
       } catch {
@@ -82,36 +101,50 @@ export interface ViewerRoom {
 }
 
 export function joinAsViewer(roomId: string, lang: TargetLang, ev: ViewerEvents): ViewerRoom {
-  let ws: WebSocket | null = new WebSocket(wsUrl(roomId))
+  let ws: WebSocket | null = null
   let open = false
+  let closed = false
+  let retries = 0
+  let curLang: TargetLang = lang
   const send = (m: ClientMsg) => {
     if (open && ws) ws.send(JSON.stringify(m))
   }
-  ws.onopen = () => {
-    open = true
-    ws?.send(JSON.stringify({ t: 'hello', role: 'viewer', lang }))
-  }
-  ws.onmessage = (e) => {
-    try {
-      const msg = JSON.parse(e.data as string) as ServerMsg
-      if (msg.t === 'caption') ev.onCaption(toUtterance(msg))
-      else if (msg.t === 'interim')
-        ev.onInterim(msg.source ? { speaker: msg.speaker, source: msg.source, translation: msg.translation } : null)
-      else if (msg.t === 'sync')
-        ev.onSync(msg.utterances.map(toUtterance), { title: msg.title, status: msg.status, viewers: msg.viewers })
-      else if (msg.t === 'meta') ev.onMeta({ title: msg.title, status: msg.status, viewers: msg.viewers })
-      else if (msg.t === 'ended') ev.onEnded()
-    } catch {
-      /* ignore */
+  const connect = () => {
+    ws = new WebSocket(wsUrl(roomId))
+    ws.onopen = () => {
+      open = true
+      retries = 0
+      ws?.send(JSON.stringify({ t: 'hello', role: 'viewer', lang: curLang }))
+    }
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data as string) as ServerMsg
+        if (msg.t === 'caption') ev.onCaption(toUtterance(msg))
+        else if (msg.t === 'interim')
+          ev.onInterim(msg.source ? { speaker: msg.speaker, source: msg.source, translation: msg.translation } : null)
+        else if (msg.t === 'sync')
+          ev.onSync(msg.utterances.map(toUtterance), { title: msg.title, status: msg.status, viewers: msg.viewers })
+        else if (msg.t === 'meta') ev.onMeta({ title: msg.title, status: msg.status, viewers: msg.viewers })
+        else if (msg.t === 'ended') ev.onEnded()
+      } catch {
+        /* ignore */
+      }
+    }
+    ws.onerror = () => ev.onError('房間連線失敗（可能尚未連上後端，或連結無效）')
+    ws.onclose = () => {
+      open = false
+      if (closed || retries >= MAX_RETRIES) return
+      window.setTimeout(connect, backoff(retries++))
     }
   }
-  ws.onerror = () => ev.onError('房間連線失敗（可能尚未連上後端，或連結無效）')
-  ws.onclose = () => {
-    open = false
-  }
+  connect()
   return {
-    setLang: (l) => send({ t: 'lang', lang: l }),
+    setLang: (l) => {
+      curLang = l
+      send({ t: 'lang', lang: l })
+    },
     close: () => {
+      closed = true
       try {
         ws?.close()
       } catch {

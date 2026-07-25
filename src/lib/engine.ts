@@ -135,7 +135,12 @@ class MeetingEngine {
       asr = new DeepgramASR('multi', cb, tok, { detectLanguage: true })
     } else {
       // Prefer Deepgram when available (better quality + diarization); else Web Speech.
-      const wantDeepgram = this.backendOk && (s.asrProvider === 'deepgram' || (s.asrProvider === 'auto' && s.diarization))
+      // iOS Safari's Web Speech is unreliable (esp. in installed PWAs), so prefer
+      // Deepgram there whenever the backend can mint a token.
+      const isIOS =
+        /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+      const wantDeepgram =
+        this.backendOk && (s.asrProvider === 'deepgram' || (s.asrProvider === 'auto' && (s.diarization || isIOS)))
       if (wantDeepgram) {
         const tok = await getDeepgramToken().catch(() => null)
         if (tok?.key) asr = new DeepgramASR(src.deepgram, this.withDeepgramFallback(cb, src.bcp47), tok.key)

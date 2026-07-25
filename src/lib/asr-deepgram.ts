@@ -1,6 +1,7 @@
-// Deepgram streaming ASR (quality + speaker diarization). Activates when the
-// backend can mint a short-lived token; otherwise the engine falls back to
-// Web Speech. Streams 16kHz linear16 PCM straight to Deepgram over WebSocket.
+// Deepgram streaming ASR (quality + speaker diarization + optional language
+// detection). One mic capture streams to a reconnecting WebSocket, so brief
+// network drops or token hiccups recover automatically instead of ending the
+// meeting. Streams 16kHz linear16 PCM straight to Deepgram.
 import type { ASRCallbacks, ASREngine } from './asr'
 import { startPCMCapture, type PCMCapture } from './audio'
 
@@ -14,9 +15,14 @@ interface DGMessage {
   channel?: { detected_language?: string; alternatives?: { transcript?: string; words?: DGWord[] }[] }
 }
 
+const MAX_RETRIES = 8
+
 export class DeepgramASR implements ASREngine {
   private ws: WebSocket | null = null
   private cap: PCMCapture | null = null
+  private stopped = false
+  private retries = 0
+  private reconnectTimer: number | null = null
 
   constructor(
     private lang: string,
@@ -25,7 +31,7 @@ export class DeepgramASR implements ASREngine {
     private opts?: { detectLanguage?: boolean },
   ) {}
 
-  async start(): Promise<void> {
+  private url(): string {
     const params = new URLSearchParams({
       model: 'nova-2',
       punctuate: 'true',
@@ -40,21 +46,34 @@ export class DeepgramASR implements ASREngine {
     // (multilingual meetings); otherwise pin to the chosen source language.
     if (this.opts?.detectLanguage) params.set('detect_language', 'true')
     else params.set('language', this.lang)
+    return `wss://api.deepgram.com/v1/listen?${params.toString()}`
+  }
+
+  async start(): Promise<void> {
+    this.stopped = false
+    this.retries = 0
+    this.connect(true)
+    try {
+      // One mic capture for the whole session; it streams to whichever socket
+      // is currently open, so it survives reconnects.
+      this.cap = await startPCMCapture((buf) => {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(buf)
+      })
+    } catch (e) {
+      this.cb.onError('麥克風擷取失敗：' + String(e))
+    }
+  }
+
+  private connect(first: boolean): void {
     // Short-lived grant tokens authenticate over WS with the "bearer" subprotocol.
     // (The "token" subprotocol is only for long-lived Deepgram API keys.)
-    const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${params.toString()}`, ['bearer', this.token])
+    const ws = new WebSocket(this.url(), ['bearer', this.token])
     ws.binaryType = 'arraybuffer'
     this.ws = ws
 
-    ws.onopen = async () => {
-      this.cb.onStart?.()
-      try {
-        this.cap = await startPCMCapture((buf) => {
-          if (ws.readyState === WebSocket.OPEN) ws.send(buf)
-        })
-      } catch (e) {
-        this.cb.onError('麥克風擷取失敗：' + String(e))
-      }
+    ws.onopen = () => {
+      this.retries = 0
+      if (first) this.cb.onStart?.()
     }
     ws.onmessage = (e) => {
       try {
@@ -71,11 +90,27 @@ export class DeepgramASR implements ASREngine {
         /* ignore */
       }
     }
-    ws.onerror = () => this.cb.onError('Deepgram 連線發生問題')
-    ws.onclose = () => undefined
+    ws.onerror = () => {
+      /* let onclose drive reconnection */
+    }
+    ws.onclose = () => {
+      if (this.stopped) return
+      if (this.retries >= MAX_RETRIES) {
+        this.cb.onError('Deepgram 連線中斷，無法重新連線。')
+        return
+      }
+      const delay = Math.min(8000, 500 * 2 ** this.retries)
+      this.retries++
+      this.reconnectTimer = window.setTimeout(() => this.connect(false), delay)
+    }
   }
 
   stop(): void {
+    this.stopped = true
+    if (this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
     this.cap?.stop()
     this.cap = null
     try {
