@@ -5,7 +5,7 @@ import { useStore } from '../state/store'
 import { LANGS } from './langs'
 import { WebSpeechASR, type ASRCallbacks, type ASREngine } from './asr'
 import { DeepgramASR } from './asr-deepgram'
-import { backendAvailable, getDeepgramToken, translateText } from './api'
+import { backendAvailable, getDeepgramToken, translateText, translateDetect } from './api'
 import { enableWakeLock, disableWakeLock } from './wakelock'
 import { saveSession } from './history'
 import { joinAsHost, type HostRoom } from './room'
@@ -42,7 +42,7 @@ function buildMeta(): SessionMeta {
     createdAt: s.startedAt ?? Date.now(),
     durationSec: s.elapsedSec,
     sourceLang: s.settings.sourceLang,
-    targetLang: s.settings.targetLang,
+    targetLang: s.settings.autoDetect ? 'zh' : s.settings.targetLang,
     speakers: Math.max(speakerSet.size, s.utterances.length > 0 ? 1 : 0),
     hasMinutes: false,
   }
@@ -57,6 +57,28 @@ class MeetingEngine {
   private fellBack = false
   private pending: { text: string; speaker: number | null; ts: number } | null = null
   private flushTimer: number | null = null
+  private pretoken: string | null = null
+
+  // Whether Deepgram can be used right now (backend up + token grantable).
+  // Gates the multilingual auto-detect mode before a meeting can start.
+  async deepgramReady(): Promise<boolean> {
+    if (!(await backendAvailable())) return false
+    const tok = await getDeepgramToken().catch(() => null)
+    this.pretoken = tok?.key ?? null
+    return !!tok?.key
+  }
+
+  private abortStart(): void {
+    if (this.timer) {
+      clearInterval(this.timer)
+      this.timer = null
+    }
+    this.asr = null
+    this.host?.close()
+    this.host = null
+    void disableWakeLock()
+    useStore.getState().setStatus('idle')
+  }
 
   prepareRoomId(): string {
     const id = genRoomId()
@@ -64,7 +86,7 @@ class MeetingEngine {
     return id
   }
 
-  async start(): Promise<void> {
+  async start(): Promise<boolean> {
     const st = useStore.getState()
     const s = st.settings
     this.prepareRoomId() // always begin a fresh room: resets timer, utterances, id
@@ -88,8 +110,8 @@ class MeetingEngine {
     if (this.backendOk) {
       const roomId = useStore.getState().roomId as string
       this.host = joinAsHost(roomId, {
-        source: s.sourceLang,
-        target: s.targetLang,
+        source: s.autoDetect ? 'auto' : s.sourceLang,
+        target: s.autoDetect ? 'zh' : s.targetLang,
         title: s.title.trim() || '會議',
         onViewers: (n) => useStore.getState().setViewers(n),
       })
@@ -98,16 +120,29 @@ class MeetingEngine {
     const cb = this.callbacks()
     const src = LANGS[s.sourceLang]
 
-    // Prefer Deepgram when available (better quality + diarization); else Web Speech.
     let asr: ASREngine | null = null
-    const wantDeepgram = this.backendOk && (s.asrProvider === 'deepgram' || (s.asrProvider === 'auto' && s.diarization))
-    if (wantDeepgram) {
-      const tok = await getDeepgramToken().catch(() => null)
-      if (tok?.key) asr = new DeepgramASR(src.deepgram, this.withDeepgramFallback(cb, src.bcp47), tok.key)
+    if (s.autoDetect) {
+      // Multilingual auto-detect: Deepgram only (Web Speech can't detect language).
+      const tok = this.pretoken ?? (await getDeepgramToken().catch(() => null))?.key ?? null
+      this.pretoken = null
+      if (!tok) {
+        useStore.getState().setError('多語言自動偵測需要啟用 Deepgram。')
+        this.abortStart()
+        return false
+      }
+      asr = new DeepgramASR('multi', cb, tok, { detectLanguage: true })
+    } else {
+      // Prefer Deepgram when available (better quality + diarization); else Web Speech.
+      const wantDeepgram = this.backendOk && (s.asrProvider === 'deepgram' || (s.asrProvider === 'auto' && s.diarization))
+      if (wantDeepgram) {
+        const tok = await getDeepgramToken().catch(() => null)
+        if (tok?.key) asr = new DeepgramASR(src.deepgram, this.withDeepgramFallback(cb, src.bcp47), tok.key)
+      }
+      if (!asr) asr = new WebSpeechASR(src.bcp47, cb)
     }
-    if (!asr) asr = new WebSpeechASR(src.bcp47, cb)
     this.asr = asr
     await asr.start()
+    return true
   }
 
   private callbacks(): ASRCallbacks {
@@ -119,7 +154,7 @@ class MeetingEngine {
         useStore.getState().setInterim(show ? { speaker: p?.speaker ?? null, source: show, translation: null } : null)
         this.host?.publishInterim(p?.speaker ?? null, show)
       },
-      onFinal: (text, speaker) => this.handleFinal(text, speaker),
+      onFinal: (text, speaker, lang) => this.handleFinal(text, speaker, lang),
       onError: (msg) => useStore.getState().setError(msg),
       onStart: () => {
         useStore.getState().setStatus('live')
@@ -128,10 +163,12 @@ class MeetingEngine {
     }
   }
 
-  private handleFinal(text: string, speaker: number | null): void {
-    const chunk = useStore.getState().settings.translateChunkChars ?? 0
-    if (chunk <= 0) {
-      this.emitUtterance(text, speaker) // 逐句即時：translate each finalized sentence
+  private handleFinal(text: string, speaker: number | null, lang?: string): void {
+    const s = useStore.getState().settings
+    const chunk = s.translateChunkChars ?? 0
+    // Auto-detect keeps each segment separate so its detected language is honored.
+    if (s.autoDetect || chunk <= 0) {
+      this.emitUtterance(text, speaker, undefined, lang)
       return
     }
     // Batch consecutive finals into a longer segment before translating, so
@@ -157,7 +194,7 @@ class MeetingEngine {
     }
   }
 
-  private emitUtterance(text: string, speaker: number | null, ts?: number): void {
+  private emitUtterance(text: string, speaker: number | null, ts?: number, lang?: string): void {
     const s = useStore.getState().settings
     const u: Utterance = {
       id: crypto.randomUUID(),
@@ -171,6 +208,21 @@ class MeetingEngine {
     useStore.getState().setInterim(null)
     this.host?.publishFinal(u)
     this.host?.publishInterim(null, '')
+
+    if (s.autoDetect) {
+      // Auto mode: Chinese stays as-is; everything else is translated to Chinese.
+      if (lang && /^zh/i.test(lang)) return
+      if (!this.backendOk) return
+      translateDetect(text, LANGS.zh.deepl)
+        .then((r) => {
+          if (/^zh/i.test(r.detectedSource)) return // DeepL says it was Chinese — no translation
+          useStore.getState().updateUtterance(u.id, { translation: r.translation })
+        })
+        .catch(() => {
+          /* backend hiccup — leave original visible */
+        })
+      return
+    }
 
     if (s.targetLang !== 'none' && this.backendOk) {
       const target = LANGS[s.targetLang]

@@ -10,6 +10,7 @@ const defaultSettings: MeetingSettings = {
   diarization: true,
   generateMinutes: true,
   asrProvider: 'auto',
+  autoDetect: false,
   captionOrder: 'newest-bottom',
   fontSource: 2,
   fontTranslation: 2,

@@ -39,8 +39,8 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     const body = (await request.json().catch(() => ({}))) as { text?: string; source?: string; target?: string }
     if (!body.text || !body.target) return json({ error: 'text and target required' }, 400)
     try {
-      const translation = await translate(env, body.text, body.source ?? '', body.target)
-      return json({ translation })
+      const r = await translate(env, body.text, body.source ?? '', body.target)
+      return json({ translation: r.text, detectedSource: r.detected })
     } catch (e) {
       return json({ error: String(e), translation: body.text }, 200)
     }

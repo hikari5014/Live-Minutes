@@ -24,6 +24,7 @@ export interface MeetingSettings {
   diarization: boolean
   generateMinutes: boolean
   asrProvider: 'auto' | 'deepgram' | 'webspeech'
+  autoDetect: boolean // 多語言自動偵測 → 中文（需 Deepgram）
   captionOrder: CaptionOrder
   fontSource: number // 原文字級 1..5
   fontTranslation: number // 譯文字級 1..5

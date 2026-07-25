@@ -10,7 +10,8 @@ interface DGWord {
 interface DGMessage {
   type?: string
   is_final?: boolean
-  channel?: { alternatives?: { transcript?: string; words?: DGWord[] }[] }
+  detected_language?: string
+  channel?: { detected_language?: string; alternatives?: { transcript?: string; words?: DGWord[] }[] }
 }
 
 export class DeepgramASR implements ASREngine {
@@ -21,12 +22,12 @@ export class DeepgramASR implements ASREngine {
     private lang: string,
     private cb: ASRCallbacks,
     private token: string,
+    private opts?: { detectLanguage?: boolean },
   ) {}
 
   async start(): Promise<void> {
     const params = new URLSearchParams({
       model: 'nova-2',
-      language: this.lang,
       punctuate: 'true',
       interim_results: 'true',
       diarize: 'true',
@@ -35,6 +36,10 @@ export class DeepgramASR implements ASREngine {
       channels: '1',
       endpointing: '300',
     })
+    // detect_language lets Deepgram auto-identify each segment's language
+    // (multilingual meetings); otherwise pin to the chosen source language.
+    if (this.opts?.detectLanguage) params.set('detect_language', 'true')
+    else params.set('language', this.lang)
     // Short-lived grant tokens authenticate over WS with the "bearer" subprotocol.
     // (The "token" subprotocol is only for long-lived Deepgram API keys.)
     const ws = new WebSocket(`wss://api.deepgram.com/v1/listen?${params.toString()}`, ['bearer', this.token])
@@ -60,7 +65,7 @@ export class DeepgramASR implements ASREngine {
         if (!text) return
         const sp = alt?.words?.[0]?.speaker
         const speaker = typeof sp === 'number' ? sp : null
-        if (m.is_final) this.cb.onFinal(text, speaker)
+        if (m.is_final) this.cb.onFinal(text, speaker, m.channel?.detected_language ?? m.detected_language)
         else this.cb.onInterim(text)
       } catch {
         /* ignore */

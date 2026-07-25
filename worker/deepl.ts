@@ -2,9 +2,9 @@ import type { Env } from './types'
 
 // Translate one segment. source/target are DeepL language codes (e.g. EN, ZH-HANT).
 // Without a key the text passes through unchanged so the app still runs.
-export async function translate(env: Env, text: string, source: string, target: string): Promise<string> {
-  if (!env.DEEPL_API_KEY) return text
-  if (!text.trim()) return text
+export async function translate(env: Env, text: string, source: string, target: string): Promise<{ text: string; detected: string }> {
+  if (!env.DEEPL_API_KEY) return { text, detected: '' }
+  if (!text.trim()) return { text, detected: '' }
   const host = env.DEEPL_API_HOST || 'https://api-free.deepl.com'
   const body = new URLSearchParams()
   body.set('text', text)
@@ -20,6 +20,7 @@ export async function translate(env: Env, text: string, source: string, target: 
     body,
   })
   if (!res.ok) throw new Error(`deepl ${res.status}`)
-  const data = (await res.json()) as { translations?: { text: string }[] }
-  return data.translations?.[0]?.text ?? text
+  const data = (await res.json()) as { translations?: { text: string; detected_source_language?: string }[] }
+  const tr = data.translations?.[0]
+  return { text: tr?.text ?? text, detected: tr?.detected_source_language ?? '' }
 }

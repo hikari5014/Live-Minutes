@@ -27,6 +27,12 @@ export async function translateText(
   return data.translation
 }
 
+/** Translate with auto source-language detection; also returns DeepL's detected source language. */
+export async function translateDetect(text: string, target: string): Promise<{ translation: string; detectedSource: string }> {
+  const data = await postJSON<{ translation: string; detectedSource?: string }>('/api/translate', { text, target }, undefined)
+  return { translation: data.translation, detectedSource: data.detectedSource ?? '' }
+}
+
 /** Ask the backend to generate AI minutes for a room from its stored transcript. */
 export async function requestMinutes(roomId: string, lang: string): Promise<MinutesDoc> {
   return postJSON<MinutesDoc>('/api/minutes', { roomId, lang })

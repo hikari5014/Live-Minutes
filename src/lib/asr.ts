@@ -3,7 +3,7 @@
 
 export interface ASRCallbacks {
   onInterim: (text: string) => void
-  onFinal: (text: string, speaker: number | null) => void
+  onFinal: (text: string, speaker: number | null, lang?: string) => void
   onError: (message: string) => void
   onStart?: () => void
 }

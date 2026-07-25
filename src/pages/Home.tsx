@@ -20,6 +20,7 @@ export default function Home() {
   const [sessions, setSessions] = useState<SessionMeta[]>(() => listSessions())
   const [folders, setFolders] = useState<Folder[]>(() => listFolders())
   const [moving, setMoving] = useState<SessionMeta | null>(null)
+  const [blockMsg, setBlockMsg] = useState<string | null>(null)
 
   function reload() {
     setSessions(listSessions())
@@ -27,9 +28,21 @@ export default function Home() {
   }
 
   async function start() {
+    if (settings.autoDetect) {
+      setStarting(true)
+      const ready = await engine.deepgramReady()
+      if (!ready) {
+        setStarting(false)
+        setBlockMsg(
+          '「多語言自動偵測」需要啟用付費 Deepgram（設定 DEEPGRAM_API_KEY 且能簽發 token）。目前偵測不到可用的 Deepgram，無法開始會議。\n\n請改用一般語言模式，或啟用 Deepgram 後再試。',
+        )
+        return
+      }
+    }
     setStarting(true)
-    await engine.start()
-    nav('/live')
+    const ok = await engine.start()
+    if (ok) nav('/live')
+    else setStarting(false)
   }
 
   const folderName = (id?: string | null) => (id ? folders.find((f) => f.id === id)?.name : undefined)
@@ -51,7 +64,12 @@ export default function Home() {
             className="mb-3 w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-faint"
           />
           <div className="flex items-center gap-2">
-            <Select value={settings.sourceLang} onChange={(v) => setSettings({ sourceLang: v as LangCode })} ariaLabel="來源語言">
+            <Select
+              value={settings.autoDetect ? 'auto' : settings.sourceLang}
+              onChange={(v) => (v === 'auto' ? setSettings({ autoDetect: true }) : setSettings({ autoDetect: false, sourceLang: v as LangCode }))}
+              ariaLabel="來源語言"
+            >
+              <option value="auto">🌐 自動偵測（多語言）</option>
               {LANG_LIST.map((l) => (
                 <option key={l.code} value={l.code}>
                   {l.label}
@@ -59,19 +77,25 @@ export default function Home() {
               ))}
             </Select>
             <ArrowRight className="h-4 w-4 flex-none text-faint" />
-            <Select value={settings.targetLang} onChange={(v) => setSettings({ targetLang: v as TargetLang })} ariaLabel="字幕語言">
-              <option value="none">不翻譯（純逐字稿）</option>
-              {LANG_LIST.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.label}
-                </option>
-              ))}
-            </Select>
+            {settings.autoDetect ? (
+              <div className="flex-1 rounded-xl border border-line bg-surface px-3 py-2.5 text-sm font-bold text-ink">中文（自動翻譯）</div>
+            ) : (
+              <Select value={settings.targetLang} onChange={(v) => setSettings({ targetLang: v as TargetLang })} ariaLabel="字幕語言">
+                <option value="none">不翻譯（純逐字稿）</option>
+                {LANG_LIST.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.label}
+                  </option>
+                ))}
+              </Select>
+            )}
           </div>
-          <p className="mt-2 text-[11px] text-faint">
-            {settings.targetLang === 'none'
-              ? '純逐字稿模式，不呼叫翻譯、省 DeepL 額度。'
-              : `${LANGS[settings.sourceLang].label} → ${targetLabel(settings.targetLang)}，只翻定稿句。`}
+          <p className="mt-2 text-[11px]" style={{ color: settings.autoDetect ? 'var(--warn)' : 'var(--faint)' }}>
+            {settings.autoDetect
+              ? '⚠️ 自動判斷每個人說的語言並翻成中文（中文不翻譯）。需啟用付費 Deepgram，否則無法開始會議。'
+              : settings.targetLang === 'none'
+                ? '純逐字稿模式，不呼叫翻譯、省 DeepL 額度。'
+                : `${LANGS[settings.sourceLang].label} → ${targetLabel(settings.targetLang)}，只翻定稿句。`}
           </p>
 
           <div className="mt-4 grid gap-3 border-t border-line pt-4">
@@ -189,6 +213,18 @@ export default function Home() {
           onClose={() => setMoving(null)}
           onChanged={reload}
         />
+      )}
+
+      {blockMsg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6" onClick={() => setBlockMsg(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-surface p-5" onClick={(e) => e.stopPropagation()}>
+            <div className="text-sm font-extrabold text-ink">⚠️ 無法開始會議</div>
+            <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-body">{blockMsg}</p>
+            <button onClick={() => setBlockMsg(null)} className="mt-4 w-full rounded-xl bg-brand py-2.5 text-[13px] font-extrabold text-white">
+              我知道了
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
