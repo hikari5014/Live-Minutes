@@ -8,6 +8,7 @@ import { Users, Sun, Moon } from '../components/icons'
 import { LANG_LIST } from '../lib/langs'
 import { currentTheme, toggleTheme } from '../lib/theme'
 import { useStore } from '../state/store'
+import { t, uiLang, detectTargetLang } from '../lib/i18n'
 import type { Interim, TargetLang, Utterance } from '../lib/types'
 
 interface RoomMeta {
@@ -22,14 +23,14 @@ export default function RoomView() {
   const [utterances, setUtterances] = useState<Utterance[]>([])
   const [interim, setInterim] = useState<Interim | null>(null)
   const [meta, setMeta] = useState<RoomMeta>({ title: '會議', status: 'connecting', viewers: 0 })
-  const [lang, setLang] = useState<TargetLang>('zh')
+  const [lang, setLang] = useState<TargetLang>(() => detectTargetLang())
   const [error, setError] = useState<string | null>(null)
   const [ended, setEnded] = useState(false)
   const [dark, setDark] = useState(currentTheme() === 'dark')
   const roomRef = useRef<ViewerRoom | null>(null)
 
   useEffect(() => {
-    const room = joinAsViewer(id, 'zh', {
+    const room = joinAsViewer(id, detectTargetLang(), {
       onCaption: (u) =>
         setUtterances((prev) => (prev.some((x) => x.id === u.id) ? prev.map((x) => (x.id === u.id ? u : x)) : [...prev, u])),
       onInterim: setInterim,
@@ -57,6 +58,7 @@ export default function RoomView() {
   }
 
   const showTranslation = lang !== 'none'
+  const ui = uiLang(lang)
 
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
@@ -68,7 +70,7 @@ export default function RoomView() {
           <BrandMark size={24} />
           <div className="min-w-0">
             <div className="truncate text-sm font-extrabold text-ink">{meta.title}</div>
-            <div className="text-[11px] text-faint">{ended ? '會議已結束' : error ? '尚未連線' : '即時觀看'}</div>
+            <div className="text-[11px] text-faint">{ended ? t(ui, 'ended') : error ? t(ui, 'connError') : t(ui, 'watching')}</div>
           </div>
           {meta.viewers > 0 && (
             <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-muted">
@@ -86,9 +88,9 @@ export default function RoomView() {
         </div>
         <div className="mx-auto max-w-md px-4 pb-2.5">
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold text-faint">字幕語言</span>
-            <Select value={lang} onChange={changeLang} ariaLabel="字幕語言">
-              <option value="none">原文（不翻譯）</option>
+            <span className="text-[11px] font-bold text-faint">{t(ui, 'subtitleLang')}</span>
+            <Select value={lang} onChange={changeLang} ariaLabel={t(ui, 'subtitleLang')}>
+              <option value="none">{t(ui, 'original')}</option>
               {LANG_LIST.map((l) => (
                 <option key={l.code} value={l.code}>
                   {l.label}
@@ -105,7 +107,7 @@ export default function RoomView() {
             className="rounded-xl border border-line px-3 py-2 text-[13px]"
             style={{ borderLeft: '4px solid var(--warn)', background: 'var(--warn-tint)', color: 'var(--warn)' }}
           >
-            {error}
+            {t(ui, 'connError')}
           </div>
         </div>
       )}
@@ -118,6 +120,7 @@ export default function RoomView() {
           order={settings.captionOrder}
           fontSource={settings.fontSource}
           fontTranslation={settings.fontTranslation}
+          emptyText={t(ui, 'empty')}
         />
       </div>
 
@@ -127,7 +130,7 @@ export default function RoomView() {
             to={`/minutes/${id}`}
             className="flex items-center justify-center rounded-xl bg-brand py-3 text-sm font-extrabold text-white"
           >
-            查看會議紀錄
+            {t(ui, 'viewMinutes')}
           </Link>
         </div>
       )}

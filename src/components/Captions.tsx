@@ -72,6 +72,7 @@ export function CaptionStream({
   order = 'newest-bottom',
   fontSource = 2,
   fontTranslation = 2,
+  emptyText,
 }: {
   utterances: Utterance[]
   interim: Interim | null
@@ -79,6 +80,7 @@ export function CaptionStream({
   order?: CaptionOrder
   fontSource?: number
   fontTranslation?: number
+  emptyText?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const isTop = order === 'newest-top'
@@ -107,7 +109,7 @@ export function CaptionStream({
         paddingBottom: isTop ? 16 : 'clamp(72px,18vh,180px)',
       }}
     >
-      {empty && <div className="mt-16 text-center text-sm text-faint">開始說話，字幕會即時出現在這裡…</div>}
+      {empty && <div className="mt-16 text-center text-sm text-faint">{emptyText ?? '開始說話，字幕會即時出現在這裡…'}</div>}
       {isTop && interim?.source && <InterimItem interim={interim} trPx={trPx} />}
       {items.map((u) => (
         <CaptionItem key={u.id} u={u} showTranslation={showTranslation} srcPx={srcPx} trPx={trPx} />
