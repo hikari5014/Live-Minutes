@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getSession, getMinutes, saveMinutes, updateSessionMeta, updateUtterances, saveSession } from '../lib/history'
-import { requestMinutesFromTranscript, fetchSession } from '../lib/api'
+import { getSession, getMinutes, saveMinutes, updateSessionMeta, updateUtterances, saveSession, getBackupKey, exportOne } from '../lib/history'
+import { requestMinutesFromTranscript, fetchSession, pushBackup } from '../lib/api'
 import { transcriptText, minutesMarkdown, downloadText } from '../lib/minutes'
 import { TopBar } from '../components/TopBar'
 import { ChevronLeft, Sparkles, Download, Users, Calendar } from '../components/icons'
@@ -95,6 +95,13 @@ export default function Minutes() {
   const editUtt = (uid: string, patch: Partial<Utterance>) =>
     setUtts((l) => l.map((u) => (u.id === uid ? { ...u, ...patch } : u)))
 
+  const syncBackup = () => {
+    const bkey = getBackupKey()
+    if (!bkey) return
+    const blob = exportOne(id)
+    if (blob) void pushBackup(bkey, [blob]) // keep cloud backup current (if enabled)
+  }
+
   function saveEdits() {
     if (!data) return
     const cleanNames: Record<number, string> = {}
@@ -108,6 +115,7 @@ export default function Minutes() {
     }
     setData({ meta: newMeta, utterances: utts })
     setEditing(false)
+    syncBackup()
   }
 
   async function generate() {
@@ -118,6 +126,7 @@ export default function Minutes() {
       const doc = await requestMinutesFromTranscript(text, title || meta.title, 'zh-Hant')
       saveMinutes(id, doc)
       setMinutes(doc)
+      syncBackup()
     } catch {
       setError('生成失敗：需要連上後端與 Gemini 金鑰。')
     } finally {

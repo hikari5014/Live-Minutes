@@ -81,6 +81,38 @@ export async function fetchUsage(): Promise<UsageInfo | null> {
   }
 }
 
+export interface BackupItem {
+  id: string
+  payload: string
+  updatedAt: number
+}
+
+/** Push local meetings to the cloud backup keyed by a device capability key. */
+export async function pushBackup(key: string, items: BackupItem[]): Promise<boolean> {
+  try {
+    const res = await fetch('/api/backup', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key, items }),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+/** Pull all backed-up meetings for a key. */
+export async function pullBackup(key: string): Promise<BackupItem[] | null> {
+  try {
+    const res = await fetch(`/api/backup?key=${encodeURIComponent(key)}`)
+    if (!res.ok) return null
+    const d = (await res.json()) as { items?: BackupItem[] }
+    return d.items ?? []
+  } catch {
+    return null
+  }
+}
+
 export async function backendAvailable(): Promise<boolean> {
   try {
     const res = await fetch('/api/health', { method: 'GET' })

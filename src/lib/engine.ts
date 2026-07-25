@@ -5,9 +5,9 @@ import { useStore } from '../state/store'
 import { LANGS } from './langs'
 import { WebSpeechASR, type ASRCallbacks, type ASREngine } from './asr'
 import { DeepgramASR } from './asr-deepgram'
-import { backendAvailable, getDeepgramToken, translateText, translateDetect } from './api'
+import { backendAvailable, getDeepgramToken, translateText, translateDetect, pushBackup } from './api'
 import { enableWakeLock, disableWakeLock } from './wakelock'
-import { saveSession, saveDraft, clearDraft } from './history'
+import { saveSession, saveDraft, clearDraft, getBackupKey, exportOne } from './history'
 import { joinAsHost, type HostRoom } from './room'
 import type { SessionMeta, Utterance } from './types'
 
@@ -306,6 +306,11 @@ class MeetingEngine {
     const meta = buildMeta()
     saveSession(meta, st.utterances)
     clearDraft() // meeting ended cleanly — drop the recovery draft
+    const bkey = getBackupKey()
+    if (bkey) {
+      const blob = exportOne(meta.id)
+      if (blob) void pushBackup(bkey, [blob]) // cloud backup (if enabled), non-blocking
+    }
     st.resetSession() // clear live state so the next recording starts fresh
     return meta
   }

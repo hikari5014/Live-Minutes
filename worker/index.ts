@@ -3,6 +3,7 @@ import { translate } from './deepl'
 import { generateMinutes } from './gemini'
 import { grantDeepgramToken } from './deepgram'
 import { getUsage } from './usage'
+import { putBackups, getBackups, validKey, type BackupItem } from './backup'
 import { getSessionFromD1, getTranscriptFromD1, saveMinutesToD1 } from './db'
 import { MeetingRoom } from './room'
 
@@ -114,6 +115,27 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     const data = await getSessionFromD1(env, sessMatch[1]).catch(() => null)
     if (!data) return json({ error: 'not found' }, 404)
     return json(data)
+  }
+
+  if (p === '/api/backup') {
+    if (request.method === 'POST') {
+      const body = (await request.json().catch(() => ({}))) as { key?: string; items?: BackupItem[] }
+      if (!validKey(body.key) || !Array.isArray(body.items)) return json({ error: 'invalid key or items' }, 400)
+      try {
+        return json({ ok: true, count: await putBackups(env, body.key, body.items) })
+      } catch (e) {
+        return json({ error: String(e) }, 500)
+      }
+    }
+    if (request.method === 'GET') {
+      const key = url.searchParams.get('key') || ''
+      if (!validKey(key)) return json({ error: 'invalid key' }, 400)
+      try {
+        return json({ items: await getBackups(env, key) })
+      } catch (e) {
+        return json({ error: String(e) }, 500)
+      }
+    }
   }
 
   return json({ error: 'not found' }, 404)

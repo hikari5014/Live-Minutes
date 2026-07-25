@@ -25,3 +25,13 @@ CREATE TABLE IF NOT EXISTS minutes (
   doc        TEXT NOT NULL,
   created_at INTEGER NOT NULL
 );
+
+-- Cloud backup of a device's meetings (option B: capability-key, no accounts).
+CREATE TABLE IF NOT EXISTS backups (
+  backup_key TEXT NOT NULL,
+  session_id TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  payload    TEXT NOT NULL,
+  PRIMARY KEY (backup_key, session_id)
+);
+CREATE INDEX IF NOT EXISTS idx_backups_key ON backups(backup_key);

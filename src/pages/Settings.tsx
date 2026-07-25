@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../state/store'
 import { TopBar } from '../components/TopBar'
 import { ChevronLeft } from '../components/icons'
-import { fetchUsage, type UsageInfo } from '../lib/api'
+import { fetchUsage, pushBackup, pullBackup, type UsageInfo } from '../lib/api'
 import { CHUNK_OPTIONS, WAIT_OPTIONS, sourcePx, translationPx } from '../lib/display'
 import {
   listArchived,
@@ -14,6 +14,11 @@ import {
   renameFolder,
   deleteFolder,
   sessionsInFolder,
+  getBackupKey,
+  ensureBackupKey,
+  setBackupKey,
+  exportAll,
+  importBackup,
 } from '../lib/history'
 import { shortDate, durationLabel } from '../lib/format'
 import type { CaptionOrder, Folder } from '../lib/types'
@@ -247,6 +252,10 @@ export default function Settings() {
             </div>
           </Section>
 
+          <Section title="雲端備份" desc="用一組「備份碼」把你的會議存到雲端（不需帳號）；換裝置或清除瀏覽器資料後可用備份碼還原。">
+            <BackupSection />
+          </Section>
+
           <Section title="API 使用額度" desc="查詢各服務目前用量（DeepL 字元數、Deepgram 餘額）。">
             {!usageOpen ? (
               <button onClick={loadUsage} className="w-full rounded-xl bg-brand py-2.5 text-[13px] font-extrabold text-white">
@@ -344,6 +353,92 @@ function FolderItem({ folder, onChange, go }: { folder: Folder; onChange: () => 
         ) : (
           <div className="border-t border-line p-2 text-center text-[11.5px] text-faint">此資料夾沒有會議</div>
         ))}
+    </div>
+  )
+}
+
+function BackupSection() {
+  const [key, setKey] = useState<string | null>(() => getBackupKey())
+  const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
+  const [restoreKey, setRestoreKey] = useState('')
+  const [copied, setCopied] = useState(false)
+
+  async function backupNow() {
+    setBusy(true)
+    setStatus(null)
+    const k = ensureBackupKey()
+    setKey(k)
+    const items = exportAll()
+    const ok = await pushBackup(k, items)
+    setStatus(ok ? `已備份 ${items.length} 場會議到雲端。` : '備份失敗：需連上後端服務。')
+    setBusy(false)
+  }
+  async function restore() {
+    const k = restoreKey.trim()
+    if (k.length < 16) {
+      setStatus('備份碼格式不正確。')
+      return
+    }
+    setBusy(true)
+    setStatus(null)
+    const items = await pullBackup(k)
+    if (!items) {
+      setStatus('還原失敗：查無資料或無法連線。')
+      setBusy(false)
+      return
+    }
+    const n = importBackup(items)
+    setBackupKey(k)
+    setKey(k)
+    setStatus(`已還原 ${n} 場會議，回首頁即可看到。`)
+    setBusy(false)
+  }
+  function copyKey() {
+    if (!key) return
+    navigator.clipboard
+      ?.writeText(key)
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      })
+      .catch(() => undefined)
+  }
+
+  return (
+    <div className="grid gap-3">
+      {key ? (
+        <div className="rounded-xl border border-line p-3">
+          <div className="text-[11px] font-bold text-faint">你的備份碼（請妥善保存，換裝置用它還原）</div>
+          <div className="mt-1 flex items-center gap-2">
+            <code className="min-w-0 flex-1 truncate rounded-lg bg-surface-2 px-2 py-1 font-mono text-[11px] text-ink">{key}</code>
+            <button onClick={copyKey} className="flex-none rounded-lg border border-line px-2 py-1 text-[11px] font-bold text-brand-ink">
+              {copied ? '已複製' : '複製'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-[12px] text-faint">尚未啟用。啟用後會產生一組隨機備份碼，把你的會議存到雲端。</p>
+      )}
+      <button onClick={backupNow} disabled={busy} className="w-full rounded-xl bg-brand py-2.5 text-[13px] font-extrabold text-white disabled:opacity-60">
+        {busy ? '處理中…' : key ? '立即備份到雲端' : '啟用並備份到雲端'}
+      </button>
+      <div className="rounded-xl border border-line p-3">
+        <div className="mb-1.5 text-[12px] font-bold text-muted">用備份碼還原</div>
+        <div className="flex gap-2">
+          <input
+            value={restoreKey}
+            onChange={(e) => setRestoreKey(e.target.value)}
+            placeholder="貼上備份碼"
+            className="min-w-0 flex-1 rounded-lg border border-line bg-paper px-2 py-2 font-mono text-[12px] text-ink placeholder:text-faint"
+          />
+          <button onClick={restore} disabled={busy} className="flex-none rounded-lg border border-line px-3 text-[12px] font-bold text-ink disabled:opacity-60">
+            還原
+          </button>
+        </div>
+      </div>
+      {status && <div className="text-[12px] text-brand-ink">{status}</div>}
+      <p className="text-[10.5px] leading-relaxed text-faint">⚠️ 備份碼等同存取權，請勿外流；備份以明文存放於你的 Cloudflare D1。</p>
     </div>
   )
 }

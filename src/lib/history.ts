@@ -150,3 +150,73 @@ export function clearDraft(): void {
     /* ignore */
   }
 }
+
+// ---- Cloud backup (option B): capability key + export/import blobs ----
+
+const BACKUP_KEY = 'lm-backup-key'
+
+export interface BackupBlob {
+  id: string
+  payload: string
+  updatedAt: number
+}
+
+export function getBackupKey(): string | null {
+  try {
+    return localStorage.getItem(BACKUP_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setBackupKey(k: string): void {
+  try {
+    localStorage.setItem(BACKUP_KEY, k.trim())
+  } catch {
+    /* ignore */
+  }
+}
+
+export function ensureBackupKey(): string {
+  let k = getBackupKey()
+  if (!k) {
+    k = (crypto.randomUUID() + crypto.randomUUID()).replace(/-/g, '')
+    setBackupKey(k)
+  }
+  return k
+}
+
+function blobFor(meta: SessionMeta): BackupBlob {
+  const utterances = read<Utterance[]>(sessionKey(meta.id), [])
+  const minutes = read<MinutesDoc | null>(minutesKey(meta.id), null)
+  return { id: meta.id, payload: JSON.stringify({ meta, utterances, minutes }), updatedAt: Date.now() }
+}
+
+export function exportOne(id: string): BackupBlob | null {
+  const meta = read<SessionMeta[]>(INDEX_KEY, []).find((s) => s.id === id)
+  return meta ? blobFor(meta) : null
+}
+
+export function exportAll(): BackupBlob[] {
+  return read<SessionMeta[]>(INDEX_KEY, []).map(blobFor)
+}
+
+export function importBackup(items: { id: string; payload: string }[]): number {
+  const idx = read<SessionMeta[]>(INDEX_KEY, [])
+  const byId = new Map(idx.map((s) => [s.id, s]))
+  let n = 0
+  for (const it of items) {
+    try {
+      const parsed = JSON.parse(it.payload) as { meta: SessionMeta; utterances: Utterance[]; minutes: MinutesDoc | null }
+      if (!parsed.meta?.id) continue
+      byId.set(parsed.meta.id, parsed.meta)
+      write(sessionKey(parsed.meta.id), parsed.utterances ?? [])
+      if (parsed.minutes) write(minutesKey(parsed.meta.id), parsed.minutes)
+      n++
+    } catch {
+      /* skip malformed entry */
+    }
+  }
+  write(INDEX_KEY, Array.from(byId.values()))
+  return n
+}
