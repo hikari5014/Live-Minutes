@@ -59,6 +59,10 @@ export function saveSession(meta: SessionMeta, utterances: Utterance[]): void {
   write(sessionKey(meta.id), utterances)
 }
 
+export function updateUtterances(id: string, utterances: Utterance[]): void {
+  write(sessionKey(id), utterances)
+}
+
 export function getSession(id: string): { meta: SessionMeta; utterances: Utterance[] } | null {
   const meta = read<SessionMeta[]>(INDEX_KEY, []).find((s) => s.id === id)
   if (!meta) return null

@@ -71,6 +71,7 @@ export interface SessionMeta {
   archived?: boolean
   pinned?: boolean
   folderId?: string | null
+  speakerNames?: Record<number, string>
 }
 
 export interface Folder {
