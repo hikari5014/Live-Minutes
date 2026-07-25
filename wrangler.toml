@@ -24,6 +24,14 @@ binding = "DB"
 database_name = "live_minutes"
 database_id = "dd99e9bf-cfde-4e32-96a1-20a642e5eb42"
 
+# Per-IP rate limiting for the public API (protects paid DeepL/Gemini/Deepgram
+# quota from abuse). 600 requests / 60s per IP.
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 600, period = 60 }
+
 [vars]
 DEEPL_API_HOST = "https://api-free.deepl.com"
 GEMINI_MODEL = "gemini-2.5-flash"

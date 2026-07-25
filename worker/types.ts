@@ -7,6 +7,7 @@ export interface Env {
   DEEPGRAM_API_KEY?: string
   GEMINI_API_KEY?: string
   GEMINI_MODEL?: string
+  RATE_LIMITER?: { limit: (opts: { key: string }) => Promise<{ success: boolean }> }
 }
 
 export interface MinutesDoc {

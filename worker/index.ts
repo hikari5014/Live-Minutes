@@ -12,6 +12,30 @@ function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } })
 }
 
+// Same-origin gate: block cross-site browser calls (which always send Origin).
+// Requests with no Origin (non-browser / same-origin) pass and are rate-limited.
+function allowedOrigin(request: Request, url: URL): boolean {
+  const origin = request.headers.get('Origin')
+  if (!origin) return true
+  try {
+    return new URL(origin).host === url.host
+  } catch {
+    return false
+  }
+}
+
+async function rateLimited(request: Request, env: Env): Promise<boolean> {
+  const rl = env.RATE_LIMITER
+  if (!rl) return false
+  const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || 'anon'
+  try {
+    const { success } = await rl.limit({ key: ip })
+    return !success
+  } catch {
+    return false
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
@@ -24,6 +48,11 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
   const p = url.pathname
 
   if (p === '/api/health') return json({ ok: true })
+
+  // Abuse protection: reject cross-origin browser calls (when Origin is sent),
+  // and rate-limit per IP so nobody can drain paid quota via the public URL.
+  if (!allowedOrigin(request, url)) return json({ error: 'forbidden origin' }, 403)
+  if (await rateLimited(request, env)) return json({ error: 'rate limited' }, 429)
 
   if (request.method === 'GET' && p === '/api/usage') return json(await getUsage(env))
 
