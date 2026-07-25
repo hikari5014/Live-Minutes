@@ -1,8 +1,9 @@
 // Local session history (localStorage). Lets the app work fully offline for
 // the single-device / Web Speech path; the backend mirrors this in D1.
-import type { MinutesDoc, SessionMeta, Utterance } from './types'
+import type { Folder, MinutesDoc, SessionMeta, Utterance } from './types'
 
 const INDEX_KEY = 'lm-sessions'
+const FOLDERS_KEY = 'lm-folders'
 const sessionKey = (id: string) => `lm-session:${id}`
 const minutesKey = (id: string) => `lm-minutes:${id}`
 
@@ -24,7 +25,30 @@ function write(key: string, value: unknown): void {
 }
 
 export function listSessions(): SessionMeta[] {
-  return read<SessionMeta[]>(INDEX_KEY, []).sort((a, b) => b.createdAt - a.createdAt)
+  return read<SessionMeta[]>(INDEX_KEY, [])
+    .filter((s) => !s.archived)
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || b.createdAt - a.createdAt)
+}
+
+export function listArchived(): SessionMeta[] {
+  return read<SessionMeta[]>(INDEX_KEY, [])
+    .filter((s) => s.archived)
+    .sort((a, b) => b.createdAt - a.createdAt)
+}
+
+export function updateSessionMeta(id: string, patch: Partial<SessionMeta>): void {
+  const idx = read<SessionMeta[]>(INDEX_KEY, [])
+  const i = idx.findIndex((s) => s.id === id)
+  if (i >= 0) {
+    idx[i] = { ...idx[i], ...patch }
+    write(INDEX_KEY, idx)
+  }
+}
+
+export function sessionsInFolder(folderId: string): SessionMeta[] {
+  return read<SessionMeta[]>(INDEX_KEY, [])
+    .filter((s) => s.folderId === folderId && !s.archived)
+    .sort((a, b) => b.createdAt - a.createdAt)
 }
 
 export function saveSession(meta: SessionMeta, utterances: Utterance[]): void {
@@ -63,4 +87,33 @@ export function saveMinutes(id: string, doc: MinutesDoc): void {
 
 export function getMinutes(id: string): MinutesDoc | null {
   return read<MinutesDoc | null>(minutesKey(id), null)
+}
+
+// ---- Folders (分類資料夾) ----
+
+export function listFolders(): Folder[] {
+  return read<Folder[]>(FOLDERS_KEY, []).sort((a, b) => a.createdAt - b.createdAt)
+}
+
+export function createFolder(name: string): Folder {
+  const f: Folder = { id: crypto.randomUUID(), name: name.trim() || '未命名資料夾', createdAt: Date.now() }
+  const list = read<Folder[]>(FOLDERS_KEY, [])
+  list.push(f)
+  write(FOLDERS_KEY, list)
+  return f
+}
+
+export function renameFolder(id: string, name: string): void {
+  const list = read<Folder[]>(FOLDERS_KEY, []).map((f) => (f.id === id ? { ...f, name: name.trim() || f.name } : f))
+  write(FOLDERS_KEY, list)
+}
+
+export function deleteFolder(id: string): void {
+  // Unassign sessions in this folder (meetings are kept), then drop the folder.
+  const idx = read<SessionMeta[]>(INDEX_KEY, []).map((s) => (s.folderId === id ? { ...s, folderId: null } : s))
+  write(INDEX_KEY, idx)
+  write(
+    FOLDERS_KEY,
+    read<Folder[]>(FOLDERS_KEY, []).filter((f) => f.id !== id),
+  )
 }

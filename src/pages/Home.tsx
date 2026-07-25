@@ -1,13 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../state/store'
 import { engine } from '../lib/engine'
 import { LANG_LIST, LANGS, targetLabel } from '../lib/langs'
-import { listSessions } from '../lib/history'
-import type { LangCode, TargetLang } from '../lib/types'
+import { listSessions, listFolders, updateSessionMeta, deleteSession, createFolder } from '../lib/history'
+import type { Folder, LangCode, SessionMeta, TargetLang } from '../lib/types'
 import { TopBar } from '../components/TopBar'
 import { Toggle } from '../components/Toggle'
 import { Select } from '../components/Select'
+import { SwipeRow } from '../components/SwipeRow'
 import { Mic, Calendar, ArrowRight } from '../components/icons'
 import { shortDate, durationLabel } from '../lib/format'
 
@@ -16,13 +17,22 @@ export default function Home() {
   const setSettings = useStore((s) => s.setSettings)
   const nav = useNavigate()
   const [starting, setStarting] = useState(false)
-  const sessions = useMemo(() => listSessions(), [])
+  const [sessions, setSessions] = useState<SessionMeta[]>(() => listSessions())
+  const [folders, setFolders] = useState<Folder[]>(() => listFolders())
+  const [moving, setMoving] = useState<SessionMeta | null>(null)
+
+  function reload() {
+    setSessions(listSessions())
+    setFolders(listFolders())
+  }
 
   async function start() {
     setStarting(true)
     await engine.start()
     nav('/live')
   }
+
+  const folderName = (id?: string | null) => (id ? folders.find((f) => f.id === id)?.name : undefined)
 
   return (
     <div className="flex min-h-dvh flex-col bg-paper">
@@ -91,38 +101,157 @@ export default function Home() {
           <section className="mt-2">
             <div className="mb-2 px-1 text-[11px] font-extrabold uppercase tracking-wider text-faint">最近的會議</div>
             <div className="grid gap-2">
-              {sessions.slice(0, 6).map((s) => (
-                <button
+              {sessions.map((s) => (
+                <SwipeRow
                   key={s.id}
-                  type="button"
-                  onClick={() => nav(`/minutes/${s.id}`)}
-                  className="flex items-center gap-3 rounded-xl border border-line bg-surface p-3 text-left"
+                  onTap={() => nav(`/minutes/${s.id}`)}
+                  left={[
+                    {
+                      icon: 'push_pin',
+                      label: s.pinned ? '取消釘選' : '釘選',
+                      color: 'var(--zh)',
+                      onAction: () => {
+                        updateSessionMeta(s.id, { pinned: !s.pinned })
+                        reload()
+                      },
+                    },
+                    { icon: 'drive_file_move', label: '移動', color: 'var(--brand)', onAction: () => setMoving(s) },
+                  ]}
+                  right={[
+                    {
+                      icon: 'archive',
+                      label: '封存',
+                      color: 'var(--muted)',
+                      onAction: () => {
+                        updateSessionMeta(s.id, { archived: true })
+                        reload()
+                      },
+                    },
+                    {
+                      icon: 'delete',
+                      label: '刪除',
+                      color: 'var(--live)',
+                      onAction: () => {
+                        deleteSession(s.id)
+                        reload()
+                      },
+                    },
+                  ]}
                 >
-                  <span className="grid h-9 w-9 flex-none place-items-center rounded-[10px] bg-surface-2 text-brand-ink">
-                    <Calendar className="h-4 w-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13.5px] font-bold text-ink">{s.title}</span>
-                    <span className="tnum block text-[11.5px] text-faint">
-                      {shortDate(s.createdAt)} · {durationLabel(s.durationSec)}
-                      {s.speakers ? ` · ${s.speakers} 位發言者` : ''}
+                  <div className="flex items-center gap-3 bg-surface p-3">
+                    <span className="grid h-9 w-9 flex-none place-items-center rounded-[10px] bg-surface-2 text-brand-ink">
+                      <Calendar className="h-4 w-4" />
                     </span>
-                  </span>
-                  <span
-                    className="rounded-full px-2 py-0.5 text-[10.5px] font-extrabold"
-                    style={{
-                      color: s.hasMinutes ? 'var(--ok)' : 'var(--muted)',
-                      background: s.hasMinutes ? 'var(--ok-tint)' : 'var(--surface-2)',
-                    }}
-                  >
-                    {s.hasMinutes ? '已整理' : '未生成紀錄'}
-                  </span>
-                </button>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-1.5">
+                        {s.pinned && (
+                          <span className="material-symbols-rounded flex-none text-zh-ink" style={{ fontSize: 15 }}>
+                            push_pin
+                          </span>
+                        )}
+                        <span className="truncate text-[13.5px] font-bold text-ink">{s.title}</span>
+                      </span>
+                      <span className="tnum mt-0.5 block text-[11.5px] text-faint">
+                        {shortDate(s.createdAt)} · {durationLabel(s.durationSec)}
+                        {s.speakers ? ` · ${s.speakers} 位發言者` : ''}
+                      </span>
+                      {folderName(s.folderId) && (
+                        <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-surface-2 px-2 py-0.5 text-[10px] font-bold text-muted">
+                          <span className="material-symbols-rounded" style={{ fontSize: 12 }}>
+                            folder
+                          </span>
+                          {folderName(s.folderId)}
+                        </span>
+                      )}
+                    </span>
+                    <span
+                      className="flex-none rounded-full px-2 py-0.5 text-[10.5px] font-extrabold"
+                      style={{
+                        color: s.hasMinutes ? 'var(--ok)' : 'var(--muted)',
+                        background: s.hasMinutes ? 'var(--ok-tint)' : 'var(--surface-2)',
+                      }}
+                    >
+                      {s.hasMinutes ? '已整理' : '未生成'}
+                    </span>
+                  </div>
+                </SwipeRow>
               ))}
             </div>
+            <p className="mt-2 px-1 text-[10.5px] text-faint">← 左滑：封存／刪除　·　右滑：釘選／移動 →</p>
           </section>
         )}
       </main>
+
+      {moving && (
+        <FolderPicker
+          session={moving}
+          folders={folders}
+          onClose={() => setMoving(null)}
+          onChanged={reload}
+        />
+      )}
+    </div>
+  )
+}
+
+function FolderPicker({
+  session,
+  folders,
+  onClose,
+  onChanged,
+}: {
+  session: SessionMeta
+  folders: Folder[]
+  onClose: () => void
+  onChanged: () => void
+}) {
+  const [name, setName] = useState('')
+  function assign(folderId: string | null) {
+    updateSessionMeta(session.id, { folderId })
+    onChanged()
+    onClose()
+  }
+  function addAndAssign() {
+    const n = name.trim()
+    if (!n) return
+    const f = createFolder(n)
+    updateSessionMeta(session.id, { folderId: f.id })
+    onChanged()
+    onClose()
+  }
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div className="safe-b w-full max-w-md rounded-t-2xl bg-surface p-4" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 text-sm font-extrabold text-ink">移動「{session.title}」到資料夾</div>
+        <div className="grid max-h-[44vh] gap-1.5 overflow-y-auto">
+          <button onClick={() => assign(null)} className="flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-left text-[13px] font-bold text-ink">
+            <span className="material-symbols-rounded text-muted" style={{ fontSize: 18 }}>folder_off</span>
+            不分類（移出資料夾）
+            {!session.folderId && <span className="ml-auto font-extrabold text-brand-ink">✓</span>}
+          </button>
+          {folders.map((f) => (
+            <button key={f.id} onClick={() => assign(f.id)} className="flex items-center gap-2 rounded-xl border border-line px-3 py-2.5 text-left text-[13px] font-bold text-ink">
+              <span className="material-symbols-rounded text-brand-ink" style={{ fontSize: 18 }}>folder</span>
+              {f.name}
+              {session.folderId === f.id && <span className="ml-auto font-extrabold text-brand-ink">✓</span>}
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 flex gap-2">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="新資料夾名稱"
+            className="flex-1 rounded-xl border border-line bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-faint"
+          />
+          <button onClick={addAndAssign} className="rounded-xl bg-brand px-4 text-[13px] font-extrabold text-white">
+            新增
+          </button>
+        </div>
+        <button onClick={onClose} className="mt-3 w-full rounded-xl border border-line py-2.5 text-[13px] font-bold text-muted">
+          取消
+        </button>
+      </div>
     </div>
   )
 }

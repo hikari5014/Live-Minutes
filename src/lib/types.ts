@@ -67,6 +67,15 @@ export interface SessionMeta {
   targetLang: TargetLang
   speakers: number
   hasMinutes: boolean
+  archived?: boolean
+  pinned?: boolean
+  folderId?: string | null
+}
+
+export interface Folder {
+  id: string
+  name: string
+  createdAt: number
 }
 
 export interface SessionPayload {
