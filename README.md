@@ -87,3 +87,6 @@ npm run dev        # http://localhost:5173 — 純前端即可用 Web Speech 即
 
 完整評估、架構、免費額度、會議房間、UI 與視覺設計、路線圖：
 **➡️ [`docs/live-minutes-plan.html`](docs/live-minutes-plan.html)**
+
+針對**純中文會議**的音檔優先方案（錄音保存 → Gemini 產生權威版逐字稿與紀錄、多人語者處理、成本與風險）：
+**➡️ [`docs/chinese-minutes-plan.html`](docs/chinese-minutes-plan.html)**

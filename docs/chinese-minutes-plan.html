@@ -1,0 +1,919 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Live Minutes ｜ 純中文會議紀錄 · 音檔優先方案計劃書</title>
+<meta name="description" content="針對純中文會議的紀錄方案：混合式架構（現場免費即時字幕 + 背景錄音 → 會後 Gemini 音檔直送），含可行性數據、音檔本機保存策略、多人語者處理、路線圖、成本與待驗證風險。" />
+<meta name="color-scheme" content="light dark" />
+<style>
+/* ============================================================
+   Live Minutes — 純中文會議紀錄計劃書
+   沿用主計劃書設計系統：cool-slate 中性色 · deep teal 品牌色 ·
+   warm amber = 中文語言軌 · coral = 錄音/風險訊號
+   ============================================================ */
+:root{
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+               "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+
+  --paper:#F4F6F7; --surface:#FFFFFF; --surface-2:#EDF1F3;
+  --ink:#0F1720; --body:#2A333D; --muted:#5E6874; --faint:#8B949F;
+  --border:#E2E7EB; --border-strong:#CBD3D9;
+  --brand:#0C8F94; --brand-ink:#076C70; --brand-tint:#E1F2F2;
+  --zh:#B26A12; --zh-ink:#8A5410; --zh-tint:#F8EDD9;
+  --live:#D9363E; --live-tint:#FBE5E6;
+  --ok:#2E8B57; --ok-tint:#E3F2E9;
+  --warn:#B9722A; --warn-tint:#F8ECDD;
+  --bad:#C13A3A;
+  --g:#4285F4; --g-tint:#E4EDFD;   /* Gemini 藍 */
+  --s1:#0C8F94; --s2:#B26A12; --s3:#5D50D6; --s4:#B23A78;
+  --shadow-sm:0 1px 2px rgba(16,23,32,.06), 0 1px 3px rgba(16,23,32,.05);
+  --shadow-md:0 6px 20px rgba(16,23,32,.08), 0 2px 6px rgba(16,23,32,.05);
+  --shadow-lg:0 24px 60px rgba(16,23,32,.14), 0 8px 24px rgba(16,23,32,.08);
+  --radius:14px; --radius-sm:9px; --radius-lg:22px; --maxw:1120px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#0A0E13; --surface:#141A21; --surface-2:#1B222B;
+    --ink:#EDF1F5; --body:#C2CBD4; --muted:#8A95A0; --faint:#69737D;
+    --border:#242E38; --border-strong:#334049;
+    --brand:#25C6CC; --brand-ink:#7BE4E8; --brand-tint:rgba(37,198,204,.12);
+    --zh:#E1A85C; --zh-ink:#F0C489; --zh-tint:rgba(225,168,92,.14);
+    --live:#FF5A60; --live-tint:rgba(255,90,96,.14);
+    --ok:#49B87C; --ok-tint:rgba(73,184,124,.14);
+    --warn:#E1A85C; --warn-tint:rgba(225,168,92,.14); --bad:#FF6B6B;
+    --g:#8AB4F8; --g-tint:rgba(138,180,248,.14);
+    --s1:#2CC7CD; --s2:#E1A85C; --s3:#9A8CFF; --s4:#F06AA6;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow-md:0 8px 24px rgba(0,0,0,.5);
+    --shadow-lg:0 28px 70px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="light"]{
+  --paper:#F4F6F7; --surface:#FFFFFF; --surface-2:#EDF1F3;
+  --ink:#0F1720; --body:#2A333D; --muted:#5E6874; --faint:#8B949F;
+  --border:#E2E7EB; --border-strong:#CBD3D9;
+  --brand:#0C8F94; --brand-ink:#076C70; --brand-tint:#E1F2F2;
+  --zh:#B26A12; --zh-ink:#8A5410; --zh-tint:#F8EDD9;
+  --live:#D9363E; --live-tint:#FBE5E6;
+  --ok:#2E8B57; --ok-tint:#E3F2E9; --warn:#B9722A; --warn-tint:#F8ECDD; --bad:#C13A3A;
+  --g:#4285F4; --g-tint:#E4EDFD;
+  --shadow-sm:0 1px 2px rgba(16,23,32,.06), 0 1px 3px rgba(16,23,32,.05);
+  --shadow-md:0 6px 20px rgba(16,23,32,.08), 0 2px 6px rgba(16,23,32,.05);
+  --shadow-lg:0 24px 60px rgba(16,23,32,.14), 0 8px 24px rgba(16,23,32,.08);
+}
+:root[data-theme="dark"]{
+  --paper:#0A0E13; --surface:#141A21; --surface-2:#1B222B;
+  --ink:#EDF1F5; --body:#C2CBD4; --muted:#8A95A0; --faint:#69737D;
+  --border:#242E38; --border-strong:#334049;
+  --brand:#25C6CC; --brand-ink:#7BE4E8; --brand-tint:rgba(37,198,204,.12);
+  --zh:#E1A85C; --zh-ink:#F0C489; --zh-tint:rgba(225,168,92,.14);
+  --live:#FF5A60; --live-tint:rgba(255,90,96,.14);
+  --ok:#49B87C; --ok-tint:rgba(73,184,124,.14); --warn:#E1A85C; --warn-tint:rgba(225,168,92,.14); --bad:#FF6B6B;
+  --g:#8AB4F8; --g-tint:rgba(138,180,248,.14);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 8px 24px rgba(0,0,0,.5);
+  --shadow-lg:0 28px 70px rgba(0,0,0,.6);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0; background:var(--paper); color:var(--body); font-family:var(--font-sans);
+  font-size:16px; line-height:1.68; -webkit-font-smoothing:antialiased; overflow-x:hidden}
+h1,h2,h3,h4{color:var(--ink); line-height:1.2; text-wrap:balance; margin:0}
+p{margin:0}
+a{color:var(--brand-ink); text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:2.5px solid var(--brand); outline-offset:3px; border-radius:4px}
+code{font-family:var(--font-mono); font-size:.86em; background:var(--surface-2); padding:1.5px 5px; border-radius:5px}
+.mono{font-family:var(--font-mono)}
+.tnum{font-variant-numeric:tabular-nums}
+
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 22px}
+.eyebrow{font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--brand-ink); display:inline-flex; align-items:center; gap:8px}
+.eyebrow::before{content:""; width:22px; height:2px; background:var(--brand); border-radius:2px}
+.lead{font-size:clamp(16px,1.1vw+13px,19px); color:var(--muted); line-height:1.62}
+
+/* Topbar */
+.topbar{position:sticky; top:0; z-index:50; backdrop-filter:saturate(1.4) blur(12px);
+  background:color-mix(in srgb, var(--paper) 82%, transparent); border-bottom:1px solid var(--border)}
+.topbar__inner{max-width:var(--maxw); margin:0 auto; padding:11px 22px; display:flex; align-items:center; gap:14px}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; color:var(--ink)}
+.brand__mark{width:26px; height:26px; border-radius:8px; position:relative; flex:0 0 auto;
+  background:radial-gradient(120% 120% at 30% 20%, var(--brand) 0%, var(--brand-ink) 70%); box-shadow:var(--shadow-sm)}
+.brand__mark::after{content:""; position:absolute; inset:0; border-radius:8px;
+  background:radial-gradient(circle at 68% 70%, rgba(255,255,255,.85) 0 3px, transparent 4px)}
+.brand small{font-weight:600; color:var(--faint)}
+.topnav{margin-left:auto; display:flex; gap:2px; flex-wrap:wrap}
+.topnav a{color:var(--muted); font-size:13.5px; font-weight:600; padding:7px 10px; border-radius:8px}
+.topnav a:hover{color:var(--ink); background:var(--surface-2); text-decoration:none}
+.theme-btn{border:1px solid var(--border-strong); background:var(--surface); color:var(--ink);
+  width:38px; height:38px; border-radius:10px; cursor:pointer; display:inline-grid; place-items:center; flex:0 0 auto}
+.theme-btn:hover{border-color:var(--brand)}
+.theme-btn svg{width:18px; height:18px}
+@media (max-width:1000px){ .topnav{display:none} }
+
+/* Hero */
+.hero{position:relative; overflow:hidden; border-bottom:1px solid var(--border)}
+.hero__grid{position:absolute; inset:0; opacity:.55; pointer-events:none;
+  background-image:radial-gradient(58% 52% at 84% -8%, var(--zh-tint) 0%, transparent 60%),
+                   radial-gradient(46% 46% at 4% 6%, var(--brand-tint) 0%, transparent 58%)}
+.hero__inner{max-width:var(--maxw); margin:0 auto; padding:58px 22px 52px; position:relative}
+.hero h1{font-size:clamp(34px,5.6vw,62px); font-weight:850; letter-spacing:-.035em; margin:16px 0 0}
+.hero h1 .accent{color:var(--zh)}
+.hero__sub{margin-top:18px; max-width:62ch; font-size:clamp(16px,1.3vw,20px); color:var(--muted)}
+.hero__sub b{color:var(--body); font-weight:700}
+.chips{display:flex; flex-wrap:wrap; gap:9px; margin-top:26px}
+.chip{font-size:13px; font-weight:600; color:var(--body); background:var(--surface);
+  border:1px solid var(--border); border-radius:999px; padding:7px 13px; box-shadow:var(--shadow-sm);
+  display:inline-flex; align-items:center; gap:7px}
+.chip i{width:7px; height:7px; border-radius:50%; background:var(--brand)}
+.chip.zh i{background:var(--zh)} .chip.g i{background:var(--g)} .chip.ok i{background:var(--ok)}
+.hero__meta{display:flex; flex-wrap:wrap; gap:24px 40px; margin-top:34px}
+.hero__meta div{display:flex; flex-direction:column}
+.hero__meta .k{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); font-weight:700}
+.hero__meta .v{font-size:18px; font-weight:750; color:var(--ink); margin-top:3px}
+
+/* Sections */
+.section{padding:60px 0; border-bottom:1px solid var(--border)}
+.section__head{max-width:76ch; margin-bottom:30px}
+.section h2{font-size:clamp(25px,3vw,35px); font-weight:800; letter-spacing:-.02em; margin-top:12px}
+.section h2 + p{margin-top:13px}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+.grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+@media (max-width:860px){ .grid2,.grid3{grid-template-columns:1fr} }
+
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow-sm)}
+.card h3{font-size:17px; font-weight:750; letter-spacing:-.01em; display:flex; align-items:center; gap:10px}
+.card p{margin-top:9px; color:var(--muted); font-size:14.5px}
+.card ul{margin:10px 0 0; padding-left:18px; color:var(--muted); font-size:14px}
+.card li{margin-top:5px}
+.num{width:28px; height:28px; border-radius:8px; background:var(--brand-tint); color:var(--brand-ink);
+  display:grid; place-items:center; font-weight:800; font-size:14px; flex:0 0 auto}
+.num.zh{background:var(--zh-tint); color:var(--zh-ink)}
+
+/* Verdict */
+.verdict{display:grid; grid-template-columns:auto 1fr; gap:24px; align-items:center;
+  background:linear-gradient(120deg, var(--zh-tint), color-mix(in srgb,var(--brand-tint) 70%, transparent));
+  border:1px solid var(--border); border-radius:var(--radius-lg); padding:26px; box-shadow:var(--shadow-md)}
+.verdict__badge{width:104px; height:104px; border-radius:50%; display:grid; place-items:center; text-align:center;
+  background:var(--surface); border:2px solid var(--zh); box-shadow:var(--shadow-sm)}
+.verdict__badge b{font-size:15px; color:var(--zh-ink); font-weight:850; line-height:1.25}
+.verdict__badge small{font-size:10.5px; color:var(--muted); letter-spacing:.1em; display:block; margin-top:4px}
+.verdict h3{font-size:21px}
+.verdict p{margin-top:9px; color:var(--body); font-size:15px}
+@media (max-width:640px){ .verdict{grid-template-columns:1fr} }
+
+/* Callouts */
+.callout{border:1px solid var(--border); border-left-width:4px; border-radius:var(--radius);
+  padding:17px 19px; background:var(--surface); box-shadow:var(--shadow-sm)}
+.callout + .callout{margin-top:12px}
+.callout h4{font-size:15px; display:flex; align-items:center; gap:9px}
+.callout p{margin-top:7px; font-size:14.5px; color:var(--body)}
+.callout--ok{border-left-color:var(--ok); background:color-mix(in srgb,var(--ok-tint) 55%, var(--surface))}
+.callout--ok h4{color:var(--ok)}
+.callout--warn{border-left-color:var(--warn); background:color-mix(in srgb,var(--warn-tint) 55%, var(--surface))}
+.callout--warn h4{color:var(--warn)}
+.callout--bad{border-left-color:var(--bad); background:color-mix(in srgb,var(--live-tint) 55%, var(--surface))}
+.callout--bad h4{color:var(--bad)}
+.callout--info{border-left-color:var(--brand); background:color-mix(in srgb,var(--brand-tint) 45%, var(--surface))}
+.callout--info h4{color:var(--brand-ink)}
+
+/* Tables */
+.tablewrap{overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius);
+  box-shadow:var(--shadow-sm); background:var(--surface)}
+table{border-collapse:collapse; width:100%; min-width:660px; font-size:14px}
+thead th{background:var(--surface-2); color:var(--ink); text-align:left; font-weight:750; font-size:12.5px;
+  letter-spacing:.03em; padding:12px 15px; border-bottom:1px solid var(--border)}
+tbody td{padding:12px 15px; border-bottom:1px solid var(--border); color:var(--body); vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:color-mix(in srgb,var(--surface-2) 55%, transparent)}
+td b, td .svc{color:var(--ink); font-weight:750}
+td small{color:var(--faint); display:block; margin-top:2px}
+.mk{font-weight:800} .mk.yes{color:var(--ok)} .mk.no{color:var(--bad)} .mk.mid{color:var(--warn)}
+.rec-row{background:color-mix(in srgb,var(--brand-tint) 40%, transparent) !important}
+
+/* Pipeline diagram */
+.pipe{display:grid; gap:14px}
+.pipe__lane{border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
+  padding:16px 18px; box-shadow:var(--shadow-sm)}
+.pipe__lane h4{font-size:14px; display:flex; align-items:center; gap:9px}
+.pipe__tag{font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  padding:3px 8px; border-radius:999px; background:var(--live-tint); color:var(--live)}
+.pipe__tag.after{background:var(--g-tint); color:var(--g)}
+.flow{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px}
+.node{border:1px solid var(--border-strong); background:var(--surface-2); border-radius:10px;
+  padding:9px 13px; font-size:13px; font-weight:650; color:var(--ink); display:inline-flex; align-items:center; gap:7px}
+.node.brandy{background:var(--brand-tint); border-color:color-mix(in srgb,var(--brand) 35%, transparent); color:var(--brand-ink)}
+.node.gem{background:var(--g-tint); border-color:color-mix(in srgb,var(--g) 35%, transparent); color:var(--g)}
+.node.zhy{background:var(--zh-tint); border-color:color-mix(in srgb,var(--zh) 35%, transparent); color:var(--zh-ink)}
+.node small{display:block; font-weight:600; font-size:11px; color:var(--muted)}
+.arrow{color:var(--faint); font-weight:800; font-size:15px}
+.pipe__note{margin-top:11px; font-size:13px; color:var(--muted)}
+
+/* Roadmap */
+.phases{display:grid; gap:14px}
+.phase{display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:start;
+  border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
+  padding:18px 20px; box-shadow:var(--shadow-sm)}
+.phase__n{width:44px; height:44px; border-radius:12px; display:grid; place-items:center;
+  background:var(--brand); color:#fff; font-weight:850; font-size:15px; flex:0 0 auto}
+.phase--later .phase__n{background:var(--surface-2); color:var(--muted)}
+.phase h3{font-size:16.5px; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.phase p{margin-top:7px; color:var(--muted); font-size:14.5px}
+.phase ul{margin:9px 0 0; padding-left:18px; font-size:14px; color:var(--body)}
+.phase li{margin-top:4px}
+.badge{font-size:11px; font-weight:800; letter-spacing:.06em; padding:3px 9px; border-radius:999px;
+  background:var(--surface-2); color:var(--muted); text-transform:uppercase}
+.badge.now{background:var(--ok-tint); color:var(--ok)}
+.badge.next{background:var(--zh-tint); color:var(--zh-ink)}
+
+/* Decision list */
+.decide{display:grid; gap:12px}
+.decide__item{border:1px solid var(--border); border-left:4px solid var(--zh); border-radius:var(--radius);
+  background:var(--surface); padding:16px 18px; box-shadow:var(--shadow-sm)}
+.decide__item h4{font-size:15px; color:var(--ink)}
+.decide__item p{margin-top:6px; font-size:14px; color:var(--muted)}
+.decide__item .rec{margin-top:8px; font-size:13.5px; color:var(--brand-ink); font-weight:700}
+
+.note{font-size:13px; color:var(--faint); margin-top:14px}
+.footer{padding:44px 0 64px; color:var(--muted)}
+.footer .wrap{display:flex; flex-wrap:wrap; gap:18px; align-items:center; justify-content:space-between}
+.footer small{font-size:12.5px; color:var(--faint)}
+@media print{ .topbar,.theme-btn{display:none} .section{break-inside:avoid} }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__inner">
+    <div class="brand"><span class="brand__mark"></span> Live Minutes <small>· 中文會議紀錄方案</small></div>
+    <nav class="topnav">
+      <a href="#problem">問題定義</a>
+      <a href="#shift">核心轉向</a>
+      <a href="#feasibility">可行性</a>
+      <a href="#storage">音檔保存</a>
+      <a href="#speakers">多人語者</a>
+      <a href="#arch">建議架構</a>
+      <a href="#roadmap">路線圖</a>
+      <a href="#cost">成本</a>
+      <a href="#risk">風險</a>
+      <a href="#decide">決策點</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" aria-label="切換深淺色主題">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ============================ HERO ============================ -->
+<section class="hero">
+  <div class="hero__grid"></div>
+  <div class="hero__inner">
+    <div class="eyebrow">計劃書 · v1 · 2026</div>
+    <h1>純中文會議紀錄<br /><span class="accent">音檔優先</span>方案</h1>
+    <p class="hero__sub">
+      純中文會議是 Live Minutes 成本最低、但<b>最吃辨識品質</b>的情境：翻譯完全用不到，成敗幾乎全押在「中文聽打準不準」。
+      本計劃提出<b>混合式架構</b>——現場用免費即時字幕維持體驗，同時背景錄音；散會後把音檔交給 <b>Gemini</b> 產出權威版逐字稿與會議紀錄。
+    </p>
+    <div class="chips">
+      <span class="chip zh"><i></i>繁體中文優先</span>
+      <span class="chip g"><i></i>Gemini 音檔直送</span>
+      <span class="chip ok"><i></i>DeepL 用量歸零</span>
+      <span class="chip"><i></i>本機音檔保存</span>
+      <span class="chip"><i></i>語者歸屬</span>
+    </div>
+    <div class="hero__meta">
+      <div><span class="k">核心問題</span><span class="v">中文辨識品質</span></div>
+      <div><span class="k">建議策略</span><span class="v">現場即時 ＋ 會後權威版</span></div>
+      <div><span class="k">1 小時音檔</span><span class="v tnum">≈ 11.5 萬 tokens</span></div>
+      <div><span class="k">邊際成本</span><span class="v">僅 Gemini 一次</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 決策摘要 ============================ -->
+<section class="section">
+  <div class="wrap">
+    <div class="verdict">
+      <div class="verdict__badge"><b>建議<br />採用</b><small>混合模式</small></div>
+      <div>
+        <h3>結論：現場照舊、會後升級——不要在兩者之間二選一</h3>
+        <p>
+          即時字幕與高品質逐字稿是<b>兩種不同的需求</b>，硬要用同一條管線同時滿足，只會兩邊都妥協。
+          建議現場繼續用<b>免費的瀏覽器即時字幕</b>（觀眾也看得到、零成本），同時<b>背景錄音</b>；
+          散會後把音檔交給 Gemini 產出<b>權威版逐字稿 + 會議紀錄</b>覆蓋即時版。
+          如此一來：現場不花錢、事後品質最好，純中文情境<b>完全不碰 DeepL</b>，甚至可以連 Deepgram 都不開。
+        </p>
+      </div>
+    </div>
+    <p class="note">※ 本文所有數字與限制，凡標示 <b>待驗證</b> 者皆需以實機／實測確認後才可寫入實作假設，不以印象值作為設計依據。</p>
+  </div>
+</section>
+
+<!-- ============================ 1. 問題定義 ============================ -->
+<section class="section" id="problem">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">01 · 問題定義</div>
+      <h2>純中文模式已經可用，但沒有為中文最佳化</h2>
+      <p class="lead">
+        現況：設定「中文 → 不翻譯（純逐字稿）」即進入純中文模式，翻譯不呼叫、DeepL 歸零，
+        只花 Deepgram（辨識）＋一次 Gemini（紀錄）。房間端也已有同語言防呆。
+        問題不在功能缺失，而在<b>中文特有的品質陷阱</b>沒有被處理。
+      </p>
+    </div>
+
+    <div class="callout callout--ok">
+      <h4>✅ 現在就能用的既有槓桿</h4>
+      <p>
+        設定中的「翻譯分段」<b>不只作用在翻譯</b>——它是把連續句子合併後才成段，純逐字稿模式下同樣生效。
+        中文 ASR 常吐很短的片段，把它調成「中／長」，逐字稿會從碎句變成通順段落。
+        <b>代價：</b>此設定目前的命名與說明（強調省 DeepL 額度）對純中文情境是誤導的，應更名為「逐字稿分段」並改寫說明。
+      </p>
+    </div>
+
+    <h3 style="margin-top:30px; font-size:19px">中文特有的五個痛點</h3>
+    <div class="grid2" style="margin-top:16px">
+      <div class="card">
+        <h3><span class="num zh">1</span>引擎選擇（最重要，且反直覺）</h3>
+        <p>
+          目前邏輯是「只要開語者分離就走 Deepgram」，而語者分離<b>預設開啟</b>。
+          但 Deepgram 的中文表現一般<b>弱於其英文</b>，而瀏覽器 Web Speech（Chrome／Android）背後是 Google 引擎，
+          台灣國語表現通常很好<b>而且免費</b>。等於純中文會議可能正在用較差的中文引擎，去換發言者標記。
+        </p>
+        <p><b>⚠️ 例外：</b>iPhone 上 Web Speech 不可靠，iOS 仍需走 Deepgram。</p>
+      </div>
+      <div class="card">
+        <h3><span class="num zh">2</span>繁簡正規化</h3>
+        <p>辨識引擎可能回傳簡體字。純中文（台灣）情境必須將逐字稿正規化為<b>繁體</b>，否則紀錄閱讀感受不佳、也不符合實務慣例。</p>
+      </div>
+      <div class="card">
+        <h3><span class="num zh">3</span>標點與口語贅字</h3>
+        <p>
+          中文 ASR 標點普遍不佳，加上「就是、然後、那個」等口語贅字。
+          這不只影響閱讀——<b>髒輸入會直接拉低 Gemini 產出的紀錄品質</b>。
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="num zh">4</span>中英夾雜（code-switching）</h3>
+        <p>台灣會議常說「這個 sprint 要先 deploy」。純 <code>zh-TW</code> 模型容易吃掉或音譯英文詞，多語模型反而更適合。</p>
+      </div>
+      <div class="card">
+        <h3><span class="num zh">5</span>專有名詞</h3>
+        <p>人名、產品名、專案代號是最常錯、也最影響紀錄可信度的部分。需要<b>術語表</b>：可餵給辨識引擎做關鍵詞加權，也可交給 Gemini 做後修正。</p>
+      </div>
+      <div class="card">
+        <h3><span class="num">＄</span>成本現況</h3>
+        <p>純中文模式 DeepL 已經歸零。若辨識改用免費 Web Speech，則<b>連 Deepgram 也可歸零</b>，只剩 Gemini 一次呼叫。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 2. 核心轉向 ============================ -->
+<section class="section" id="shift">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">02 · 核心轉向</div>
+      <h2>從「即時串流決定一切」到「音檔優先」</h2>
+      <p class="lead">
+        即時串流 ASR 的先天限制（片段短、標點差、無法回頭修正）在中文上被放大。
+        改由<b>會後音檔</b>產生權威版本，可一次解掉多數痛點——因為 Gemini 是「聽完整段再輸出」，不是逐字吐。
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:26%">中文痛點</th><th style="width:37%">即時串流路線</th><th style="width:37%">音檔 → Gemini 路線</th></tr></thead>
+        <tbody>
+          <tr><td><b>標點與斷句</b></td><td><span class="mk mid">△</span> 依賴引擎、常缺漏</td><td><span class="mk yes">✓</span> 中文標點遠佳，自然分段</td></tr>
+          <tr><td><b>繁簡</b></td><td><span class="mk mid">△</span> 可能回簡體，需另行轉換</td><td><span class="mk yes">✓</span> 可直接要求輸出繁體</td></tr>
+          <tr><td><b>中英夾雜</b></td><td><span class="mk no">✗</span> <code>zh-TW</code> 模型易吃掉英文詞</td><td><span class="mk yes">✓</span> 混語處理明顯較佳</td></tr>
+          <tr><td><b>口語贅字</b></td><td><span class="mk no">✗</span> 原樣保留</td><td><span class="mk yes">✓</span> 可於同一次呼叫要求清稿</td></tr>
+          <tr><td><b>專有名詞</b></td><td><span class="mk mid">△</span> 需關鍵詞加權</td><td><span class="mk yes">✓</span> 可用與會者／術語表修正</td></tr>
+          <tr><td><b>即時性</b></td><td><span class="mk yes">✓</span> 現場就看得到</td><td><span class="mk no">✗</span> <b>會後才有</b></td></tr>
+          <tr><td><b>語者分離</b></td><td><span class="mk yes">✓</span> Deepgram 聲學分離穩定</td><td><span class="mk mid">△</span> 推論式、長音檔會漂移</td></tr>
+          <tr><td><b>成本</b></td><td>Deepgram 依分鐘計費</td><td><span class="mk yes">✓</span> 現場可用免費字幕，僅 Gemini</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--info" style="margin-top:18px">
+      <h4>💡 這就是為什麼要「混合」而不是「取代」</h4>
+      <p>
+        上表最後三列顯示：兩條路線的強弱<b>互補而非重疊</b>。即時性只有串流有、文字品質只有音檔有。
+        因此正解不是二選一，而是<b>兩條同時跑</b>：現場走免費串流維持體驗與分享房間，音檔在背景累積，散會後產出權威版覆蓋。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 3. 可行性 ============================ -->
+<section class="section" id="feasibility">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">03 · 技術可行性</div>
+      <h2>Gemini 直接處理音檔：可行，且 1 小時綽綽有餘</h2>
+      <p class="lead">Gemini 原生支援音訊輸入，可直接聽音檔做逐字稿與摘要，而不只是吃文字。</p>
+    </div>
+
+    <div class="grid2">
+      <div class="tablewrap">
+        <table style="min-width:0">
+          <thead><tr><th>項目</th><th>數字</th></tr></thead>
+          <tbody>
+            <tr><td>音訊 token 換算</td><td class="tnum"><b>約 32 tokens／秒</b></td></tr>
+            <tr><td>1 小時音檔</td><td class="tnum"><b>≈ 11.5 萬 tokens</b></td></tr>
+            <tr><td>2.5 Flash 上下文</td><td class="tnum">100 萬 tokens</td></tr>
+            <tr><td>結論</td><td><span class="mk yes">✓</span> 1 小時<b>不必為長度切割</b></td></tr>
+            <tr><td>支援格式</td><td>WAV / MP3 / AAC / FLAC / OGG / AIFF</td></tr>
+            <tr><td>大檔上傳</td><td>需走 <b>Files API</b><small>inline base64 僅適合小檔</small></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="tablewrap">
+        <table style="min-width:0">
+          <thead><tr><th>編碼（1 小時）</th><th>檔案大小</th><th>適用</th></tr></thead>
+          <tbody>
+            <tr><td><b>Opus</b>（webm/ogg）</td><td class="tnum">約 15–30 MB</td><td>Android／桌機</td></tr>
+            <tr><td><b>AAC</b>（mp4）</td><td class="tnum">約 30–50 MB</td><td>iOS Safari</td></tr>
+            <tr><td>未壓縮 WAV 16k 單聲道</td><td class="tnum">約 115 MB</td><td><span class="mk no">✗</span> 太肥，不建議直傳</td></tr>
+          </tbody>
+        </table>
+        <div style="padding:15px 17px; border-top:1px solid var(--border)">
+          <p style="font-size:13.5px; color:var(--muted)">
+            App 目前已有 16kHz 單聲道音訊擷取管線（原供 Deepgram 使用），加錄音不需從零開始；
+            但直接輸出 WAV 體積過大，應改用 <code>MediaRecorder</code> 壓縮編碼。
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:28px; font-size:19px">邊錄邊存與自動切割</h3>
+    <div class="grid2" style="margin-top:14px">
+      <div class="card">
+        <h3>分塊錄音</h3>
+        <p>
+          <code>MediaRecorder</code> 可設定 <b>timeslice</b>，每隔數秒吐出一塊並逐塊寫入本機——
+          同時達成「邊錄邊保存」與「當機不遺失」，等同於音訊版的既有草稿救回機制。
+        </p>
+      </div>
+      <div class="card">
+        <h3>切割的真正理由</h3>
+        <p>
+          Gemini 既然吃得下 1 小時，<b>切割不是為了長度，而是為了上傳穩定性</b>（手機網路斷線可重傳單塊）。
+          建議 10–15 分鐘一段；而紀錄生成<b>已有分段 map-reduce 合併邏輯</b>，可直接沿用。
+        </p>
+      </div>
+    </div>
+
+    <div class="callout callout--warn" style="margin-top:18px">
+      <h4>⚠ 非同步處理是必要的</h4>
+      <p>
+        1 小時音檔處理需數十秒至數分鐘，不能讓單一 HTTP 請求傻等。
+        必須採「送出 → 建立工作狀態 → 前端輪詢結果」的非同步流程，否則會踩到連線逾時。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 4. 音檔保存 ============================ -->
+<section class="section" id="storage">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">04 · 音檔保存策略</div>
+      <h2>音檔存本機：可行，但要用對儲存層</h2>
+      <p class="lead">
+        現行逐字稿存於 localStorage，對文字沒問題，但 localStorage 僅約 5MB 且只能存字串，<b>放音檔完全不可行</b>。
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:22%">方式</th><th style="width:44%">適合</th><th style="width:34%">支援度</th></tr></thead>
+        <tbody>
+          <tr class="rec-row"><td><b>IndexedDB</b></td><td>直接存 Blob，容量大，最通用</td><td><span class="mk yes">✓</span> 全平台含 iOS</td></tr>
+          <tr><td><b>OPFS</b></td><td>邊錄邊附加寫入大檔，效能最佳</td><td><span class="mk yes">✓</span> Chrome / Safari 15.2+</td></tr>
+          <tr><td><b>匯出下載</b></td><td>存到「檔案」App／下載資料夾＝真正長期保存</td><td><span class="mk yes">✓</span> 全平台</td></tr>
+          <tr><td>localStorage</td><td>僅適合文字設定</td><td><span class="mk no">✗</span> 太小</td></tr>
+          <tr><td>Cloudflare R2（選配）</td><td>跨裝置回放、可重跑</td><td><span class="mk mid">△</span> 需先開通（通常要綁定帳單資料）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">容量現實：1 小時錄音 Opus 約 15–30 MB、iOS AAC 約 30–50 MB。10 場一小時會議約 <b>150–300 MB</b>，一般手機可負擔。</p>
+
+    <div class="callout callout--warn" style="margin-top:20px">
+      <h4>⚠ 瀏覽器儲存 ≠ 永久保存</h4>
+      <p>
+        ① 磁碟壓力下瀏覽器會清除資料，使用者清快取也會一併清掉 → 應呼叫 <code>navigator.storage.persist()</code> 申請常駐。<br />
+        ② iOS 對「未加入主畫面」的網站有閒置後清除機制 → <b>安裝成 PWA 後才相對安全</b>。<br />
+        ③ 因此必須提供<b>匯出音檔</b>，那才是真備份。<br />
+        ④ 音訊會吃掉絕大部分空間 → 需要「錄音管理」畫面：顯示已用容量、單場刪除、<b>N 天後自動刪除音檔（保留逐字稿）</b>。
+      </p>
+    </div>
+
+    <h3 style="margin-top:28px; font-size:19px">關鍵取捨：本機保存 ≠ 不上傳</h3>
+    <p style="margin-top:8px; color:var(--muted); font-size:15px">
+      Gemini 是雲端 API，音檔要被它聽，就一定得上傳一次。因此實際上有三種模式可選：
+    </p>
+    <div class="tablewrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th style="width:16%">模式</th><th style="width:46%">音檔去向</th><th style="width:20%">AI 紀錄</th><th style="width:18%">適合誰</th></tr></thead>
+        <tbody>
+          <tr class="rec-row">
+            <td><b>A · 本機 + 暫時上傳</b><small>建議</small></td>
+            <td>常駐存於裝置；產生紀錄時<b>短暫上傳、處理完即刪</b>，伺服器不留存</td>
+            <td><span class="mk yes">✓</span> 高品質</td><td>多數情況</td>
+          </tr>
+          <tr>
+            <td><b>B · 完全不外流</b></td>
+            <td>只存本機、永不上傳</td>
+            <td><span class="mk no">✗</span> 只能用現場即時字幕</td><td>極高機密會議</td>
+          </tr>
+          <tr>
+            <td><b>C · 本機 + R2</b></td>
+            <td>兩邊都留，換裝置也能回放</td>
+            <td><span class="mk yes">✓</span> 且可重跑</td><td>需長期歸檔</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout--ok" style="margin-top:16px">
+      <h4>✅ A 模式的隱私敘述很好講</h4>
+      <p>「音檔平常只在你的手機裡，只有你按下『生成紀錄』時才走一趟，且不落地保存。」</p>
+    </div>
+
+    <div class="callout callout--info" style="margin-top:12px">
+      <h4>💡 附帶好處：逐字稿點句回放</h4>
+      <p>
+        有了本機音檔，逐字稿就能<b>點一句、跳播該段音訊</b>。中文辨識再怎麼修，「能回去聽原音確認」
+        對紀錄可信度是質的提升——而每句的時間戳記系統<b>已經存在</b>，接起來很自然。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 5. 多人語者 ============================ -->
+<section class="section" id="speakers">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">05 · 多人對話</div>
+      <h2>Gemini 能處理多人場景，但要分清兩種能力</h2>
+      <p class="lead">
+        「分辨有幾個人在說話」和「認出誰是誰」是兩件事，Gemini 在這兩者上的表現差很多。
+        它的語者標記是<b>靠提示產生的推論行為，不是專門的語者分離管線</b>（不像 Deepgram 用聲學特徵比對），
+        因此<b>會給標籤，但不保證整場一致</b>。
+      </p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:52%">能力</th><th style="width:16%">表現</th><th style="width:32%">說明</th></tr></thead>
+        <tbody>
+          <tr><td>依提示輸出「發言者 A / B / C」</td><td><span class="mk yes">✓</span></td><td>做得到</td></tr>
+          <tr><td>短音檔、音色差異大（性別／語速不同）</td><td><span class="mk yes">✓</span></td><td>通常不錯</td></tr>
+          <tr class="rec-row"><td><b>依內容推論人名</b>（自我介紹、互相稱呼）</td><td><span class="mk yes">✓✓</span></td><td><b>它的強項</b></td></tr>
+          <tr><td>長音檔標籤一致性（第 5 分鐘的 A ＝第 40 分鐘的 A？）</td><td><span class="mk mid">△</span></td><td><b>會漂移</b></td></tr>
+          <tr><td>音色相近（同性別、同齡）</td><td><span class="mk mid">△</span></td><td>容易混淆</td></tr>
+          <tr><td>搶話、重疊講話</td><td><span class="mk no">✗</span></td><td>弱</td></tr>
+          <tr><td>遠場單麥克風（會議室現場）</td><td><span class="mk mid">△</span></td><td>比乾淨錄音難很多</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--info" style="margin-top:20px">
+      <h4>💡 關鍵洞察：會議紀錄需要的不是完美 diarization</h4>
+      <p>
+        真正要回答的是「<b>這個決議是誰拍板的？這個待辦是誰負責？</b>」——
+        而這件事 <b>Gemini 反而比 Deepgram 強</b>，因為它讀得懂內容：有人說「這部分我來處理」、
+        或別人喊「Mark 你負責前端」，它就能把待辦掛到正確的人身上。
+        <b>Deepgram 永遠只能給匿名編號，它不知道誰是 Mark。</b>
+        而 App <b>已有「發言者命名」編輯功能</b>，若 Gemini 能直接填好真名，銜接格外順。
+      </p>
+    </div>
+
+    <h3 style="margin-top:28px; font-size:19px">三種做法比較</h3>
+    <div class="tablewrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th style="width:24%">做法</th><th>語者一致性</th><th>中文文字品質</th><th>真名歸屬</th><th>成本</th></tr></thead>
+        <tbody>
+          <tr class="rec-row"><td><b>只用 Gemini</b><small>建議先做</small></td><td><span class="mk mid">△</span> 會漂移</td><td><span class="mk yes">✓</span> 最好</td><td><span class="mk yes">✓</span></td><td>只花 Gemini</td></tr>
+          <tr><td><b>只用 Deepgram</b></td><td><span class="mk yes">✓</span> 穩定</td><td><span class="mk mid">△</span> 中文較弱</td><td><span class="mk no">✗</span> 僅編號</td><td>Deepgram</td></tr>
+          <tr><td><b>混合</b><small>語者不夠穩再上</small></td><td><span class="mk yes">✓</span> 穩定</td><td><span class="mk yes">✓</span> 最好</td><td><span class="mk yes">✓</span></td><td>兩者都花</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">
+      混合作法：以 Deepgram 做聲學語者切分（取得穩定的「誰在什麼時間說話」），
+      再把該份帶時間戳與語者編號的稿子<b>連同音檔</b>交給 Gemini，請它保留既有切分、修正文字、並把編號對應到真實姓名。
+      切分靠聲學（穩），文字與人名靠語意（準）。
+    </p>
+
+    <div class="grid2" style="margin-top:20px">
+      <div class="card">
+        <h3><span class="num">A</span>與會者名單</h3>
+        <p>
+          會議開始前輸入「Mark（PM）、小美（工程）、John（行銷）」。
+          <b>這一項對準確度的提升，比任何模型調整都大</b>——它同時餵給辨識引擎做關鍵詞加權，並讓 Gemini 完成人名對應。
+        </p>
+      </div>
+      <div class="card">
+        <h3><span class="num">B</span>分段時傳遞語者名單</h3>
+        <p>
+          長會議會切段處理，若各段獨立判斷，第 2 段的「發言者 A」可能不是第 1 段的 A。
+          必須把<b>前段已識別的語者清單帶進下一段的提示</b>才能維持一致——
+          現有分段合併邏輯需為此補強。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 6. 建議架構 ============================ -->
+<section class="section" id="arch">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">06 · 建議架構</div>
+      <h2>兩條並行的管線</h2>
+      <p class="lead">現場管線負責「看得到」，會後管線負責「信得過」。兩者共用同一場會議的 ID 與時間軸。</p>
+    </div>
+
+    <div class="pipe">
+      <div class="pipe__lane">
+        <h4><span class="pipe__tag">現場 · 即時</span> 維持體驗與分享，零成本</h4>
+        <div class="flow">
+          <span class="node zhy">🎙 麥克風</span>
+          <span class="arrow">→</span>
+          <span class="node brandy">Web Speech<small>免費 · zh-TW</small></span>
+          <span class="arrow">→</span>
+          <span class="node">即時字幕</span>
+          <span class="arrow">→</span>
+          <span class="node">Durable Object 房間<small>分享連結給同事</small></span>
+        </div>
+        <p class="pipe__note">iOS 例外：Web Speech 不可靠，改走 Deepgram。純中文若不需語者分離，可完全不開 Deepgram。</p>
+      </div>
+
+      <div class="pipe__lane">
+        <h4><span class="pipe__tag">同時 · 背景</span> 錄音與保存</h4>
+        <div class="flow">
+          <span class="node zhy">🎙 同一路音訊</span>
+          <span class="arrow">→</span>
+          <span class="node">MediaRecorder<small>分塊 · 壓縮編碼</small></span>
+          <span class="arrow">→</span>
+          <span class="node brandy">IndexedDB<small>本機 · 當機可救回</small></span>
+          <span class="arrow">→</span>
+          <span class="node">匯出檔案<small>真備份</small></span>
+        </div>
+        <p class="pipe__note">申請 <code>navigator.storage.persist()</code>；提供容量顯示、單場刪除、自動清理天數。</p>
+      </div>
+
+      <div class="pipe__lane">
+        <h4><span class="pipe__tag after">散會後 · 權威版</span> 品質最高的一次產出</h4>
+        <div class="flow">
+          <span class="node brandy">本機音檔</span>
+          <span class="arrow">→</span>
+          <span class="node">Worker 代傳<small>金鑰不外洩</small></span>
+          <span class="arrow">→</span>
+          <span class="node gem">Gemini Files API<small>+ 與會者名單</small></span>
+          <span class="arrow">→</span>
+          <span class="node gem">權威版逐字稿<small>繁體 · 標點 · 去贅字 · 人名</small></span>
+          <span class="arrow">→</span>
+          <span class="node zhy">會議紀錄</span>
+        </div>
+        <p class="pipe__note">非同步：送出後建立工作狀態、前端輪詢。產出覆蓋即時版，並保留原始版本可比對。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 7. 路線圖 ============================ -->
+<section class="section" id="roadmap">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">07 · 實作路線圖</div>
+      <h2>先確保「錄得到、存得住、清得掉」，再談送去 Gemini</h2>
+      <p class="lead">每階段都可獨立交付並驗證，不必等整套完成才看得到價值。</p>
+    </div>
+
+    <div class="phases">
+      <div class="phase">
+        <div class="phase__n">P0</div>
+        <div>
+          <h3>前置驗證 <span class="badge next">先做</span></h3>
+          <p>三個「不想憑印象打包票」的項目，用小測試確認後才寫入實作假設。</p>
+          <ul>
+            <li>裝置實際可用配額：讀 <code>navigator.storage.estimate()</code>（iOS 實測）</li>
+            <li>Gemini 是否直接接受 <code>webm/opus</code>（文件列的是 OGG）</li>
+            <li>免費層每日額度是否足以支撐 1 小時音檔的日常使用</li>
+            <li>Worker 大檔上傳的實際上限與逾時行為</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase__n">P1</div>
+        <div>
+          <h3>錄音與本機保存 <span class="badge next">核心</span></h3>
+          <p>先讓音檔可靠地存在，這是後面所有功能的地基。</p>
+          <ul>
+            <li><code>MediaRecorder</code> 分塊錄音 → 逐塊寫入 IndexedDB（當機／關閉可救回）</li>
+            <li>申請 <code>navigator.storage.persist()</code></li>
+            <li>錄音管理畫面：容量顯示、單場刪除、<b>N 天後自動刪除音檔（保留逐字稿）</b></li>
+            <li>匯出音檔到「檔案」App／下載資料夾</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase__n">P2</div>
+        <div>
+          <h3>音檔 → Gemini → 權威版紀錄</h3>
+          <p>採 <b>A 模式</b>（本機保存 + 暫時上傳，不落地）。這是品質提升最有感的一步。</p>
+          <ul>
+            <li>Worker 串流代傳至 Files API；非同步工作狀態 + 前端輪詢</li>
+            <li><b>與會者名單</b>輸入（人名／角色），一併餵入提示</li>
+            <li>產出：繁體、補標點、去贅字、專有名詞修正、待辦歸屬到真名</li>
+            <li>長音檔分段時<b>傳遞語者名單</b>維持一致；沿用既有 map-reduce 合併</li>
+            <li>保留即時版原稿可對照，權威版可重新生成</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase">
+        <div class="phase__n">P3</div>
+        <div>
+          <h3>純中文模式預設 + 逐字稿點句回放</h3>
+          <ul>
+            <li>首頁一鍵「純中文會議」：中文→不翻譯、自動套用分段、依平台選最佳引擎</li>
+            <li>明示取捨：「開啟語者分離會改用 Deepgram，中文準度可能略降」</li>
+            <li>「翻譯分段」更名為<b>「逐字稿分段」</b>並改寫說明</li>
+            <li>點逐字稿任一句 → 跳播該段音訊（利用既有時間戳）</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase phase--later">
+        <div class="phase__n">P4</div>
+        <div>
+          <h3>選配強化 <span class="badge">視實測結果</span></h3>
+          <ul>
+            <li><b>術語表</b>：人名／產品／專案代號，供關鍵詞加權與 AI 後修正</li>
+            <li><b>混合語者模式</b>：Deepgram 聲學切分 + Gemini 文字與人名（若實測發現標籤漂移不可接受）</li>
+            <li><b>C 模式</b>：R2 雲端音檔保存與跨裝置回放</li>
+            <li>引擎 A/B 實測工具：同一段音訊並排比較，用真實會議決定預設值</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 8. 成本 ============================ -->
+<section class="section" id="cost">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">08 · 成本</div>
+      <h2>純中文情境的成本結構</h2>
+      <p class="lead">這是本方案最有利的一點：翻譯完全不用，辨識也可以不用。</p>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:20%">服務</th><th style="width:26%">純中文用量</th><th style="width:54%">說明</th></tr></thead>
+        <tbody>
+          <tr><td class="svc">DeepL</td><td><b style="color:var(--ok)">0</b></td><td>不翻譯模式完全不呼叫</td></tr>
+          <tr><td class="svc">Deepgram</td><td><b style="color:var(--ok)">0</b>（可選）</td><td>現場改用免費 Web Speech 即可；僅在需要穩定語者分離或 iOS 時才啟用</td></tr>
+          <tr class="rec-row"><td class="svc">Gemini</td><td>每場 <b>1 次</b></td><td>1 小時音檔 ≈ 11.5 萬 tokens；為主要（且唯一必要）成本</td></tr>
+          <tr><td class="svc">Cloudflare</td><td>既有額度</td><td>Worker 代傳與工作狀態；不保存音檔則不需 R2</td></tr>
+          <tr><td class="svc">本機儲存</td><td>約 15–50 MB／小時</td><td>使用者裝置空間，非金錢成本，但需管理與自動清理</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">相較現況（Deepgram 依分鐘計費 + Gemini），本方案在純中文情境可望把經常性費用壓到<b>僅 Gemini 一次呼叫</b>。</p>
+  </div>
+</section>
+
+<!-- ============================ 9. 風險 ============================ -->
+<section class="section" id="risk">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">09 · 風險與待驗證</div>
+      <h2>誠實的未知清單</h2>
+      <p class="lead">以下項目在實測前不應寫死為設計假設。</p>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <div class="callout callout--bad">
+          <h4>✗ 不是即時</h4>
+          <p>音檔路線是<b>會後</b>產出，取代不了現場字幕與分享房間——這正是要保留現場管線的原因。</p>
+        </div>
+        <div class="callout callout--warn">
+          <h4>⚠ 語者標記可能不夠穩</h4>
+          <p>「1 小時、單麥克風、4 人中文會議」恰好是最難的組合（遠場、搶話、混語）。<b>待驗證</b>：是否堪用；不堪用則走混合模式。</p>
+        </div>
+        <div class="callout callout--warn">
+          <h4>⚠ 音檔隱私等級升級</h4>
+          <p>目前只存文字，改存音訊是不同等級的資料。需更新隱私說明頁、明訂保留期限與自動刪除政策。</p>
+        </div>
+      </div>
+      <div>
+        <div class="callout callout--warn">
+          <h4>⚠ iOS 背景錄音中斷</h4>
+          <p>切到背景或鎖屏可能中斷錄音，需靠 Wake Lock 與分塊寫入降低損失。<b>待驗證</b>：實機行為。</p>
+        </div>
+        <div class="callout callout--warn">
+          <h4>⚠ 瀏覽器儲存可能被清除</h4>
+          <p>配額與清除策略因平台而異（iOS 尤其）。<b>待驗證</b>：以 <code>storage.estimate()</code> 實測；必須提供匯出作為真備份。</p>
+        </div>
+        <div class="callout callout--warn">
+          <h4>⚠ 格式與額度</h4>
+          <p><b>待驗證</b>：<code>webm/opus</code> 是否被直接接受、免費層每日額度是否足夠、Worker 大檔上傳上限。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 10. 決策點 ============================ -->
+<section class="section" id="decide">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">10 · 需要拍板的事</div>
+      <h2>四個決策點</h2>
+      <p class="lead">這些選擇會改變實作方向，建議在 P1 開工前確認。</p>
+    </div>
+
+    <div class="decide">
+      <div class="decide__item">
+        <h4>① 音檔保存模式：A / B / C？</h4>
+        <p>A＝本機 + 暫時上傳（不落地）；B＝完全不外流（放棄音檔 AI 紀錄）；C＝加上 R2 雲端保存。</p>
+        <p class="rec">建議：<b>A</b>。隱私敘述清楚、不需開通 R2、也不必處理帳單設定。有長期歸檔需求再升級 C。</p>
+      </div>
+      <div class="decide__item">
+        <h4>② 語者處理：先只用 Gemini，還是直接做混合？</h4>
+        <p>混合品質較穩但要同時付 Deepgram，且實作較複雜。</p>
+        <p class="rec">建議：<b>先只用 Gemini + 與會者名單</b>，用真實會議實測後再決定是否補上 Deepgram。</p>
+      </div>
+      <div class="decide__item">
+        <h4>③ 現場辨識引擎的預設值</h4>
+        <p>純中文情境下，免費 Web Speech 的中文品質可能優於 Deepgram，但會失去語者分離。</p>
+        <p class="rec">建議：<b>做 A/B 實測後再改預設</b>；在此之前於 UI 明示取捨，讓使用者自行選擇。</p>
+      </div>
+      <div class="decide__item">
+        <h4>④ 音檔保留期限</h4>
+        <p>音訊佔空間且屬敏感資料，需要預設的自動清理策略。</p>
+        <p class="rec">建議：預設<b>保留 30 天後自動刪除音檔、永久保留逐字稿與紀錄</b>，並允許使用者調整。</p>
+      </div>
+    </div>
+
+    <div class="callout callout--ok" style="margin-top:22px">
+      <h4>✅ 建議的起手式</h4>
+      <p>
+        先做 <b>P0 前置驗證</b> 與 <b>P1 錄音／本機保存</b>，再進 <b>P2（音檔 → Gemini）</b>。
+        然後用你一場真實的中文會議實測，比較「即時版 vs 權威版」的品質差距，
+        再決定是否需要 Deepgram 做語者分離、以及是否要上 R2。
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <div>
+      <div class="brand"><span class="brand__mark"></span> Live Minutes</div>
+      <small>純中文會議紀錄 · 音檔優先方案計劃書 · 與主計劃書 <code>docs/live-minutes-plan.html</code> 併行閱讀</small>
+    </div>
+    <small>本文件為技術規劃，所有標示「待驗證」之數據需經實測確認後方可作為實作依據。</small>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var btn = document.getElementById('themeBtn');
+  var sun = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>';
+  var moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+  function cur(){
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t) return t;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function paint(){ btn.innerHTML = cur() === 'dark' ? moon : sun; }
+  btn.addEventListener('click', function(){
+    var next = cur() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('lm-doc-theme', next); } catch(e){}
+    paint();
+  });
+  try {
+    var saved = localStorage.getItem('lm-doc-theme');
+    if (saved) document.documentElement.setAttribute('data-theme', saved);
+  } catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>
