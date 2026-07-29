@@ -10,6 +10,7 @@ import { enableWakeLock, disableWakeLock } from './wakelock'
 import { recorder } from './recorder'
 import { requestPersist } from './storage'
 import { pruneOlderThan } from './audiodb'
+import { acquireAudio, tabAudioSupported, type AcquiredAudio } from './audiosource'
 import { saveSession, saveDraft, clearDraft, getBackupKey, exportOne } from './history'
 import { joinAsHost, type HostRoom } from './room'
 import type { SessionMeta, Utterance } from './types'
@@ -63,6 +64,7 @@ class MeetingEngine {
   private pretoken: string | null = null
   private lastDraft = 0
   private pauseStart = 0
+  private audio: AcquiredAudio | null = null
 
   // Whether Deepgram can be used right now (backend up + token grantable).
   // Gates the multilingual auto-detect mode before a meeting can start.
@@ -123,8 +125,25 @@ class MeetingEngine {
       })
     }
 
+    // Tab/system audio (online meetings): acquire ONE stream up front and share
+    // it with both the recorder and live ASR, so the share picker appears once.
+    const wantTab = s.audioSource !== 'mic' && tabAudioSupported()
+    if (wantTab) {
+      try {
+        this.audio = await acquireAudio(s.audioSource, {
+          echoCancel: s.echoCancel,
+          onTabEnded: () => useStore.getState().setError('分頁音訊分享已停止，錄音與字幕已中斷。'),
+        })
+      } catch (e) {
+        useStore.getState().setError(e instanceof Error ? e.message : '無法取得分頁音訊')
+        this.abortStart()
+        return false
+      }
+    }
+
     const ok = await this.startAsr()
     if (!ok) {
+      this.releaseAudio()
       this.abortStart()
       return false
     }
@@ -135,12 +154,21 @@ class MeetingEngine {
       void requestPersist()
       const roomId = useStore.getState().roomId as string
       recorder
-        .start(roomId, s.title.trim() || '會議')
+        .start(roomId, s.title.trim() || '會議', undefined, this.audio?.stream)
         .then((started) => useStore.getState().setRecording(started))
         .catch(() => useStore.getState().setRecording(false))
       void pruneOlderThan(s.audioRetentionDays).catch(() => 0)
     }
     return true
+  }
+
+  private releaseAudio(): void {
+    try {
+      this.audio?.cleanup()
+    } catch {
+      /* ignore */
+    }
+    this.audio = null
   }
 
   // Build and start the ASR engine for the current settings. Shared by start()
@@ -159,7 +187,22 @@ class MeetingEngine {
         useStore.getState().setError('多語言自動偵測需要啟用 Deepgram。')
         return false
       }
-      asr = new DeepgramASR('multi', cb, tok, { detectLanguage: true })
+      asr = new DeepgramASR('multi', cb, tok, { detectLanguage: true, stream: this.audio?.stream })
+    } else if (this.audio) {
+      // Tab/mixed audio: the Web Speech API can only listen to the default
+      // microphone — it cannot accept a MediaStream — so live captions here
+      // require Deepgram. Without it we still record for the post-meeting
+      // transcript rather than failing the meeting.
+      const tok = await getDeepgramToken().catch(() => null)
+      if (!tok?.key) {
+        useStore.getState().setStatus('live')
+        useStore.getState().setMicReady(true)
+        useStore
+          .getState()
+          .setError('分頁音訊的即時字幕需要 Deepgram；目前未啟用，本場會照常錄音，可於會後產生逐字稿。')
+        return true
+      }
+      asr = new DeepgramASR(src.deepgram, cb, tok.key, { stream: this.audio.stream })
     } else {
       // Prefer Deepgram when available (better quality + diarization); else Web Speech.
       // iOS Safari's Web Speech is unreliable (esp. in installed PWAs), so prefer
@@ -365,6 +408,7 @@ class MeetingEngine {
     st.setInterim(null)
     const meta = buildMeta()
     await recorder.stop(meta.title).catch(() => null)
+    this.releaseAudio()
     useStore.getState().setRecording(false)
     saveSession(meta, st.utterances)
     clearDraft() // meeting ended cleanly — drop the recovery draft

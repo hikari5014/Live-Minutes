@@ -52,6 +52,7 @@ export interface RecorderStatus {
 
 export class MeetingRecorder {
   private stream: MediaStream | null = null
+  private ownsStream = true
   private rec: MediaRecorder | null = null
   private rotateTimer: number | null = null
   private sessionId = ''
@@ -71,16 +72,29 @@ export class MeetingRecorder {
     return { recording: !this.stopped, bytes: this.bytes, segments: this.seg + (this.stopped ? 0 : 1) }
   }
 
-  /** Start recording. Returns false if unsupported or mic denied. */
-  async start(sessionId: string, title: string, onUpdate?: (s: RecorderStatus) => void): Promise<boolean> {
+  /** Start recording. `shared` injects an already-acquired stream (mic, tab
+   *  audio or a mix); its tracks are left for the owner to stop.
+   *  Returns false if unsupported or mic denied. */
+  async start(
+    sessionId: string,
+    title: string,
+    onUpdate?: (s: RecorderStatus) => void,
+    shared?: MediaStream | null,
+  ): Promise<boolean> {
     const mime = supportedMime()
     if (!mime) return false
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
-      })
-    } catch {
-      return false
+    if (shared) {
+      this.stream = shared
+      this.ownsStream = false
+    } else {
+      this.ownsStream = true
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
+        })
+      } catch {
+        return false
+      }
     }
     this.sessionId = sessionId
     this.mime = mime
@@ -183,7 +197,7 @@ export class MeetingRecorder {
     } catch {
       /* ignore */
     }
-    this.stream?.getTracks().forEach((t) => t.stop())
+    if (this.ownsStream) this.stream?.getTracks().forEach((t) => t.stop())
     this.stream = null
     this.rec = null
     // Let the final ondataavailable/onstop callbacks land before writing meta.

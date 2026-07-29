@@ -21,6 +21,8 @@ const defaultSettings: MeetingSettings = {
   audioRetentionDays: 30,
   participants: '',
   glossary: '',
+  audioSource: 'mic',
+  echoCancel: true,
 }
 
 function loadSettings(): MeetingSettings {

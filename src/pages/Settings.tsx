@@ -158,6 +158,20 @@ export default function Settings() {
           </Section>
 
           <Section
+            title="麥克風回音消除"
+            desc="一般情況請保持開啟。若你是用「喇叭外放線上會議、再用麥克風收音」，回音消除會把那個聲音當成回音消掉——這時請關閉。（桌機建議改用「分頁音訊」，音質更好。）"
+          >
+            <Segmented
+              value={s.echoCancel ? 1 : 0}
+              options={[
+                { v: 1, label: '開啟（一般會議）' },
+                { v: 0, label: '關閉（外放收音）' },
+              ]}
+              onChange={(v) => set({ echoCancel: v === 1 })}
+            />
+          </Section>
+
+          <Section
             title="與會者與術語表"
             desc="提供給 AI 作為聽寫依據：人名用於判斷「誰說了什麼」與待辦歸屬；術語表用於修正產品／專案等專有名詞的寫法。以逗號分隔。"
           >

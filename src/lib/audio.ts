@@ -8,11 +8,19 @@ export interface PCMCapture {
 
 const TARGET_RATE = 16000
 
-export async function startPCMCapture(onChunk: (pcm16: ArrayBuffer) => void): Promise<PCMCapture> {
-  const stream = await navigator.mediaDevices.getUserMedia({
-    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    video: false,
-  })
+/** `shared` lets the caller inject an already-acquired stream (mic, tab audio or
+ *  a mix). When provided we never stop its tracks — the owner does that. */
+export async function startPCMCapture(
+  onChunk: (pcm16: ArrayBuffer) => void,
+  shared?: MediaStream | null,
+): Promise<PCMCapture> {
+  const owned = !shared
+  const stream =
+    shared ??
+    (await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false,
+    }))
 
   const AudioCtx: typeof AudioContext =
     window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
@@ -45,7 +53,7 @@ export async function startPCMCapture(onChunk: (pcm16: ArrayBuffer) => void): Pr
         node.disconnect()
         source.disconnect()
         sink.disconnect()
-        stream.getTracks().forEach((t) => t.stop())
+        if (owned) stream.getTracks().forEach((t) => t.stop())
         void ctx.close()
       } catch {
         /* ignore */

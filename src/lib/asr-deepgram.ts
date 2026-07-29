@@ -28,7 +28,7 @@ export class DeepgramASR implements ASREngine {
     private lang: string,
     private cb: ASRCallbacks,
     private token: string,
-    private opts?: { detectLanguage?: boolean },
+    private opts?: { detectLanguage?: boolean; stream?: MediaStream | null },
   ) {}
 
   private url(): string {
@@ -58,7 +58,7 @@ export class DeepgramASR implements ASREngine {
       // is currently open, so it survives reconnects.
       this.cap = await startPCMCapture((buf) => {
         if (this.ws && this.ws.readyState === WebSocket.OPEN) this.ws.send(buf)
-      })
+      }, this.opts?.stream)
     } catch (e) {
       this.cb.onError('麥克風擷取失敗：' + String(e))
     }

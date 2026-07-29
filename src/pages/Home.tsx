@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../state/store'
 import { engine } from '../lib/engine'
 import { fetchUsage } from '../lib/api'
+import { tabAudioSupported, tabAudioBlockedReason } from '../lib/audiosource'
 import { LANG_LIST, LANGS, targetLabel } from '../lib/langs'
 import { listSessions, listFolders, updateSessionMeta, deleteSession, createFolder, saveSession, getDraft, clearDraft, searchSessions, exportOne, importBackup } from '../lib/history'
 
@@ -243,6 +244,45 @@ export default function Home() {
                 placeholder="與會者（選填，逗號分隔）例：Mark、小美、John"
                 className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-[13px] text-ink placeholder:text-faint"
               />
+            )}
+
+            {/* Tab/system audio — desktop Chromium only; elsewhere we say why. */}
+            {tabAudioSupported() ? (
+              <div>
+                <div className="mb-1.5 text-[12px] font-bold text-muted">音訊來源</div>
+                <div className="flex gap-1 rounded-xl bg-surface-2 p-1">
+                  {(
+                    [
+                      { v: 'mic', label: '麥克風' },
+                      { v: 'tab', label: '分頁音訊' },
+                      { v: 'both', label: '兩者' },
+                    ] as const
+                  ).map((o) => {
+                    const active = settings.audioSource === o.v
+                    return (
+                      <button
+                        key={o.v}
+                        type="button"
+                        onClick={() => setSettings({ audioSource: o.v })}
+                        className="flex-1 rounded-lg px-2 py-1.5 text-[12.5px] font-bold transition-colors"
+                        style={active ? { background: 'var(--brand)', color: '#fff' } : { color: 'var(--muted)' }}
+                      >
+                        {o.label}
+                      </button>
+                    )
+                  })}
+                </div>
+                {settings.audioSource !== 'mic' && (
+                  <p className="mt-1.5 text-[11px]" style={{ color: 'var(--warn)' }}>
+                    開始後會跳出視窗，請選擇要擷取的<b>分頁</b>並勾選「分享分頁音訊」。適合線上會議／直播。
+                    {!settings.diarization && !settings.autoDetect && ' 即時字幕需 Deepgram；未啟用時仍會錄音，可於會後產生逐字稿。'}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-[11px] text-faint">
+                <b>音訊來源：麥克風</b>　·　{tabAudioBlockedReason()}
+              </p>
             )}
           </div>
         </section>
