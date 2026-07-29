@@ -1,6 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getSession, getMinutes, saveMinutes, updateSessionMeta, updateUtterances, saveSession, getBackupKey, exportOne } from '../lib/history'
+import {
+  getSession,
+  getMinutes,
+  saveMinutes,
+  updateSessionMeta,
+  updateUtterances,
+  saveSession,
+  getBackupKey,
+  exportOne,
+  keepOriginalTranscript,
+  getOriginalTranscript,
+  hasOriginalTranscript,
+  dropOriginalTranscript,
+} from '../lib/history'
+import { buildAuthoritativeTranscript, hasRecording, type BuildProgress } from '../lib/authoritative'
 import { requestMinutesFromTranscript, fetchSession, pushBackup } from '../lib/api'
 import { useStore } from '../state/store'
 import { transcriptText, minutesMarkdown, downloadText } from '../lib/minutes'
@@ -69,6 +83,14 @@ export default function Minutes() {
   const [title, setTitle] = useState('')
   const [utts, setUtts] = useState<Utterance[]>([])
   const [names, setNames] = useState<Record<number, string>>({})
+  const [audioReady, setAudioReady] = useState(false)
+  const [building, setBuilding] = useState<BuildProgress | null>(null)
+  const [buildErr, setBuildErr] = useState<string | null>(null)
+  const [hasOrig, setHasOrig] = useState(() => hasOriginalTranscript(id))
+
+  useEffect(() => {
+    hasRecording(id).then(setAudioReady).catch(() => setAudioReady(false))
+  }, [id])
 
   // No local copy? Fetch it from the backend (viewer on another device).
   useEffect(() => {
@@ -146,6 +168,48 @@ export default function Minutes() {
     }
     setData({ meta: newMeta, utterances: utts })
     setEditing(false)
+    syncBackup()
+  }
+
+  // Re-derive the transcript from the recorded audio (higher quality than the
+  // live stream: punctuation, Traditional Chinese, no filler, real names).
+  async function buildFromAudio() {
+    if (!data) return
+    setBuilding({ done: 0, total: 1, label: '準備中' })
+    setBuildErr(null)
+    try {
+      const res = await buildAuthoritativeTranscript(
+        id,
+        { lang: settings.minutesLang, participants: settings.participants, glossary: settings.glossary },
+        setBuilding,
+      )
+      if (!res.utterances.length) throw new Error('辨識結果為空，可能這段錄音沒有語音內容')
+      keepOriginalTranscript(id, data.utterances) // keep the live version once
+      const merged = { ...names, ...res.speakerNames }
+      const newMeta: SessionMeta = { ...data.meta, speakerNames: merged }
+      if (getSession(id)) {
+        updateUtterances(id, res.utterances)
+        updateSessionMeta(id, { speakerNames: merged })
+      } else {
+        saveSession(newMeta, res.utterances)
+      }
+      setData({ meta: newMeta, utterances: res.utterances })
+      setHasOrig(true)
+      syncBackup()
+    } catch (e) {
+      setBuildErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setBuilding(null)
+    }
+  }
+
+  function revertToLive() {
+    const orig = getOriginalTranscript(id)
+    if (!orig || !data) return
+    updateUtterances(id, orig)
+    dropOriginalTranscript(id)
+    setData({ meta: data.meta, utterances: orig })
+    setHasOrig(false)
     syncBackup()
   }
 
@@ -301,6 +365,45 @@ export default function Minutes() {
             列印 / PDF
           </button>
         </div>
+
+        {audioReady && (
+          <section className="no-print mt-5 rounded-2xl border border-line p-4" style={{ background: 'var(--brand-tint)' }}>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-rounded text-brand-ink" style={{ fontSize: 20 }}>
+                graphic_eq
+              </span>
+              <span className="text-[13.5px] font-extrabold text-ink">用錄音產生權威版逐字稿</span>
+            </div>
+            <p className="mt-1 text-[12px] leading-relaxed text-body">
+              交給 Gemini 重聽這場會議的錄音：補標點、去口語贅字、輸出繁體、依與會者名單標出人名。品質高於現場即時字幕。
+            </p>
+            {building ? (
+              <div className="mt-3">
+                <div className="text-[12.5px] font-bold text-brand-ink">{building.label}…</div>
+                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-surface-2">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${Math.round((building.done / Math.max(1, building.total)) * 100)}%`, background: 'var(--brand)' }}
+                  />
+                </div>
+                <p className="mt-1.5 text-[11px] text-muted">長會議需要一點時間，請保持此頁開啟。</p>
+              </div>
+            ) : (
+              <div className="mt-3 flex gap-2">
+                <button onClick={buildFromAudio} className="flex-1 rounded-xl bg-brand py-2.5 text-[13px] font-extrabold text-white">
+                  {hasOrig ? '重新產生' : '產生權威版'}
+                </button>
+                {hasOrig && (
+                  <button onClick={revertToLive} className="rounded-xl border border-line bg-surface px-3 text-[12.5px] font-bold text-muted">
+                    還原即時版
+                  </button>
+                )}
+              </div>
+            )}
+            {buildErr && <p className="mt-2 text-[12px] text-live">產生失敗：{buildErr}</p>}
+            {hasOrig && !building && <p className="mt-2 text-[11px] text-faint">目前顯示的是權威版；現場即時版已保留，可隨時還原。</p>}
+          </section>
+        )}
 
         <section className="mt-6">
           <div className="no-print mb-2 flex items-center justify-between">

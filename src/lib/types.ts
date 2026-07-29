@@ -34,6 +34,7 @@ export interface MeetingSettings {
   recordAudio: boolean // 錄音存檔（供會後 AI 逐字稿）
   audioRetentionDays: number // 音檔保留天數，0 = 不自動刪除
   participants: string // 與會者名單（逗號分隔），提升人名與歸屬準確度
+  glossary: string // 術語表（逗號分隔）：產品/專案/專有名詞的正確寫法
 }
 
 export interface Utterance {

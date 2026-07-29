@@ -20,6 +20,7 @@ const defaultSettings: MeetingSettings = {
   recordAudio: false,
   audioRetentionDays: 30,
   participants: '',
+  glossary: '',
 }
 
 function loadSettings(): MeetingSettings {

@@ -73,6 +73,31 @@ export function updateUtterances(id: string, utterances: Utterance[]): void {
   write(sessionKey(id), utterances)
 }
 
+// ---- Authoritative (audio-derived) transcript ----
+// The live transcript is kept the first time it is replaced, so the user can
+// always compare against — or revert to — what was captured during the meeting.
+const originalKey = (id: string) => `lm-orig:${id}`
+
+export function hasOriginalTranscript(id: string): boolean {
+  return read<Utterance[] | null>(originalKey(id), null) !== null
+}
+
+export function keepOriginalTranscript(id: string, utterances: Utterance[]): void {
+  if (!hasOriginalTranscript(id)) write(originalKey(id), utterances)
+}
+
+export function getOriginalTranscript(id: string): Utterance[] | null {
+  return read<Utterance[] | null>(originalKey(id), null)
+}
+
+export function dropOriginalTranscript(id: string): void {
+  try {
+    localStorage.removeItem(originalKey(id))
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getSession(id: string): { meta: SessionMeta; utterances: Utterance[] } | null {
   const meta = read<SessionMeta[]>(INDEX_KEY, []).find((s) => s.id === id)
   if (!meta) return null
