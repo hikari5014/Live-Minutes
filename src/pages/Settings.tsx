@@ -140,12 +140,12 @@ export default function Settings() {
           </Section>
 
           <Section
-            title="翻譯分段"
-            desc="把連續幾句合併成一段再翻譯：段落越長，譯文越完整、越省 DeepL 額度，但延遲略增。"
+            title="逐字稿分段"
+            desc="把連續幾句合併成一段再定稿。中文辨識常吐很短的片段，調成「中／長」可讓逐字稿從碎句變成通順段落；有翻譯時同時讓譯文更完整、更省 DeepL 額度，代價是延遲略增。"
           >
             <div className="grid gap-3">
               <div>
-                <div className="mb-1.5 text-[12px] font-bold text-muted">一次翻譯長度</div>
+                <div className="mb-1.5 text-[12px] font-bold text-muted">一次成段長度</div>
                 <Segmented value={s.translateChunkChars} options={CHUNK_OPTIONS} onChange={(v) => set({ translateChunkChars: v })} />
               </div>
               {s.translateChunkChars > 0 && (
@@ -154,6 +154,26 @@ export default function Settings() {
                   <Segmented value={s.translateMaxWaitSec} options={WAIT_OPTIONS} onChange={(v) => set({ translateMaxWaitSec: v })} />
                 </div>
               )}
+            </div>
+          </Section>
+
+          <Section
+            title="與會者與術語表"
+            desc="提供給 AI 作為聽寫依據：人名用於判斷「誰說了什麼」與待辦歸屬；術語表用於修正產品／專案等專有名詞的寫法。以逗號分隔。"
+          >
+            <div className="grid gap-2">
+              <input
+                value={s.participants}
+                onChange={(e) => set({ participants: e.target.value })}
+                placeholder="與會者，例：Mark、小美、John"
+                className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-[13px] text-ink placeholder:text-faint"
+              />
+              <input
+                value={s.glossary}
+                onChange={(e) => set({ glossary: e.target.value })}
+                placeholder="術語，例：Live Minutes、Sprint 24、Cloudflare"
+                className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-[13px] text-ink placeholder:text-faint"
+              />
             </div>
           </Section>
 

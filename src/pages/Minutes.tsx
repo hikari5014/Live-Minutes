@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   getSession,
@@ -15,6 +15,7 @@ import {
   dropOriginalTranscript,
 } from '../lib/history'
 import { buildAuthoritativeTranscript, hasRecording, type BuildProgress } from '../lib/authoritative'
+import { listSegments, getSegmentBlob, locate, type SegmentMeta } from '../lib/audiodb'
 import { requestMinutesFromTranscript, fetchSession, pushBackup } from '../lib/api'
 import { useStore } from '../state/store'
 import { transcriptText, minutesMarkdown, downloadText } from '../lib/minutes'
@@ -88,9 +89,44 @@ export default function Minutes() {
   const [buildErr, setBuildErr] = useState<string | null>(null)
   const [hasOrig, setHasOrig] = useState(() => hasOriginalTranscript(id))
 
+  const [segments, setSegments] = useState<SegmentMeta[]>([])
+  const [clip, setClip] = useState<{ seg: number; url: string } | null>(null)
+  const [playingId, setPlayingId] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
+
   useEffect(() => {
     hasRecording(id).then(setAudioReady).catch(() => setAudioReady(false))
+    listSegments(id).then(setSegments).catch(() => setSegments([]))
   }, [id])
+
+  useEffect(() => () => { if (clip) URL.revokeObjectURL(clip.url) }, [clip])
+
+  // Tap a line to hear it: find the segment holding that timestamp, load it,
+  // and seek to the offset within that segment.
+  async function playAt(u: Utterance) {
+    if (!segments.length) return
+    const hit = locate(segments, u.ts)
+    if (!hit) return
+    setPlayingId(u.id)
+    let url = clip?.seg === hit.seg.seg ? clip.url : null
+    if (!url) {
+      const blob = await getSegmentBlob(id, hit.seg.seg, hit.seg.mime)
+      if (!blob) return
+      if (clip) URL.revokeObjectURL(clip.url)
+      url = URL.createObjectURL(blob)
+      setClip({ seg: hit.seg.seg, url })
+      await new Promise((r) => setTimeout(r, 60)) // let the <audio> pick up the new src
+    }
+    const el = audioRef.current
+    if (!el) return
+    if (el.src !== url) el.src = url
+    const seek = () => {
+      el.currentTime = hit.offsetSec
+      void el.play().catch(() => undefined)
+    }
+    if (el.readyState >= 1) seek()
+    else el.addEventListener('loadedmetadata', seek, { once: true })
+  }
 
   // No local copy? Fetch it from the backend (viewer on another device).
   useEffect(() => {
@@ -436,6 +472,15 @@ export default function Minutes() {
             </div>
           )}
 
+          {segments.length > 0 && (
+            <div className="no-print mb-2 flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+              <span className="material-symbols-rounded text-brand-ink" style={{ fontSize: 16 }}>
+                graphic_eq
+              </span>
+              <span className="text-[11.5px] text-muted">點時間可播放該段錄音</span>
+              <audio ref={audioRef} controls onEnded={() => setPlayingId(null)} className="ml-auto h-8 min-w-0 flex-1" style={{ maxWidth: 190 }} />
+            </div>
+          )}
           <div className="grid gap-3 rounded-2xl border border-line bg-surface p-4">
             {utts.length === 0 && <div className="text-center text-sm text-faint">沒有逐字稿內容</div>}
             {utts.map((u) => (
@@ -444,7 +489,25 @@ export default function Minutes() {
                   <span className="rounded-full px-2 py-0.5 text-[10.5px] font-extrabold text-white" style={{ background: speakerColor(u.speaker) }}>
                     {label(u.speaker)}
                   </span>
-                  <span className="font-mono text-[10px] text-faint">{fromMs(u.ts)}</span>
+                  {segments.length > 0 && !editing ? (
+                    <button
+                      onClick={() => playAt(u)}
+                      className="no-print inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 font-mono text-[10px]"
+                      style={
+                        playingId === u.id
+                          ? { background: 'var(--brand-tint)', color: 'var(--brand-ink)' }
+                          : { color: 'var(--faint)' }
+                      }
+                      aria-label="播放這一句"
+                    >
+                      <span className="material-symbols-rounded" style={{ fontSize: 13 }}>
+                        graphic_eq
+                      </span>
+                      {fromMs(u.ts)}
+                    </button>
+                  ) : (
+                    <span className="font-mono text-[10px] text-faint">{fromMs(u.ts)}</span>
+                  )}
                 </div>
                 {editing ? (
                   <div className="grid gap-1">

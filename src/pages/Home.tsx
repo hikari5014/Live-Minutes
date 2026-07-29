@@ -155,6 +155,32 @@ export default function Home() {
         </section>
 
         <section className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
+          {/* One-tap preset for the most common local case: a Chinese-only
+              meeting that needs a transcript + minutes, no translation. */}
+          <button
+            type="button"
+            onClick={() =>
+              setSettings({
+                autoDetect: false,
+                sourceLang: 'zh',
+                targetLang: 'none',
+                diarization: false, // keeps the free, more accurate Chinese engine
+                translateChunkChars: 60,
+                recordAudio: true,
+                generateMinutes: true,
+              })
+            }
+            className="mb-3 flex w-full items-center gap-2 rounded-xl border border-line px-3 py-2 text-left"
+            style={{ background: 'var(--zh-tint)' }}
+          >
+            <span className="material-symbols-rounded text-zh-ink" style={{ fontSize: 18 }}>
+              graphic_eq
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[12.5px] font-extrabold text-zh-ink">純中文會議 · 一鍵設定</span>
+              <span className="block text-[10.5px] text-muted">不翻譯 · 分段逐字稿 · 錄音存檔 · 會後 AI 紀錄</span>
+            </span>
+          </button>
           <input
             value={settings.title}
             onChange={(e) => setSettings({ title: e.target.value })}
@@ -197,7 +223,12 @@ export default function Home() {
           </p>
 
           <div className="mt-4 grid gap-3 border-t border-line pt-4">
-            <Toggle checked={settings.diarization} onChange={(v) => setSettings({ diarization: v })} label="語者分離" hint="標記發言者 1／2／3（需 Deepgram）" />
+            <Toggle
+              checked={settings.diarization}
+              onChange={(v) => setSettings({ diarization: v })}
+              label="語者分離"
+              hint={settings.sourceLang === 'zh' && !settings.autoDetect ? '標記發言者，但會改用 Deepgram — 中文準度可能略降' : '標記發言者 1／2／3（需 Deepgram）'}
+            />
             <Toggle checked={settings.generateMinutes} onChange={(v) => setSettings({ generateMinutes: v })} label="會後 AI 紀錄" hint="關閉可省 Gemini 額度" />
             <Toggle
               checked={settings.recordAudio}
