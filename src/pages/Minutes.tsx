@@ -254,7 +254,10 @@ export default function Minutes() {
     setError(null)
     try {
       const text = transcriptText(utts, withTr)
-      const doc = await requestMinutesFromTranscript(text, title || meta.title, settings.minutesLang)
+      const doc = await requestMinutesFromTranscript(text, title || meta.title, settings.minutesLang, {
+        participants: settings.participants,
+        glossary: settings.glossary,
+      })
       saveMinutes(id, doc)
       setMinutes(doc)
       syncBackup()

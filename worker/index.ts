@@ -83,6 +83,8 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
       roomId?: string
       title?: string
       lang?: string
+      participants?: string
+      glossary?: string
     }
     let transcript = body.transcript
     let title = body.title ?? '會議紀錄'
@@ -93,7 +95,10 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     }
     if (!transcript) return json({ error: 'no transcript' }, 400)
     try {
-      const doc = await generateMinutes(env, transcript, title, body.lang ?? 'zh-Hant')
+      const doc = await generateMinutes(env, transcript, title, body.lang ?? 'zh-Hant', {
+        participants: body.participants,
+        glossary: body.glossary,
+      })
       if (body.roomId) await saveMinutesToD1(env, body.roomId, doc).catch(() => undefined)
       return json(doc)
     } catch (e) {

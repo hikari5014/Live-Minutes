@@ -31,6 +31,15 @@ export default function About() {
             會議標題、逐字稿與紀錄<b>預設只存在你這台裝置的瀏覽器</b>（localStorage）。啟用「雲端備份」後，才會用你的備份碼存到你自己的 Cloudflare
             D1。分享房間時，逐字稿會暫存在該場會議的 Durable Object，散會後寫入 D1。
           </Card>
+          <Card title="錄音檔（重要）">
+            開啟「錄音存檔」後，會議音訊會錄下並<b>只存在這台裝置</b>（IndexedDB），不會自動上傳，也不會進入雲端備份。
+            <ul className="ml-4 mt-1.5 grid list-disc gap-1">
+              <li>只有你按下「產生權威版逐字稿」時，音檔才會<b>短暫上傳</b>給 Gemini 辨識；我們的伺服器不留存音檔。</li>
+              <li>可在「設定 → 錄音」設定<b>保留期限</b>（預設 30 天後自動刪除音檔，逐字稿與紀錄保留）。</li>
+              <li>可隨時單場刪除或匯出。清除瀏覽器資料會一併刪除未匯出的錄音。</li>
+              <li>錄音前請確認已取得與會者同意——這是你的責任。</li>
+            </ul>
+          </Card>
           <Card title="會用到哪些第三方服務">
             <ul className="ml-4 grid list-disc gap-1">
               <li>

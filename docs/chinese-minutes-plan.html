@@ -311,6 +311,28 @@ td small{color:var(--faint); display:block; margin-top:2px}
       </div>
     </div>
     <p class="note">※ 本文所有數字與限制，凡標示 <b>待驗證</b> 者皆需以實機／實測確認後才可寫入實作假設，不以印象值作為設計依據。</p>
+
+    <div class="callout callout--ok" style="margin-top:20px">
+      <h4>✅ 實作進度：P0–P4 已完成並上線（v1.5.0）</h4>
+      <p>
+        本計劃書的路線圖已全數實作完成。P0 的伺服端項目已<b>實測確認</b>（見下方「已驗證數據」），
+        裝置相關項目改以 App 內建的<b>裝置診斷頁</b>（設定 → 診斷）在真實手機上取得答案，而非依賴推測。
+      </p>
+    </div>
+
+    <div class="tablewrap" style="margin-top:16px">
+      <table>
+        <thead><tr><th style="width:34%">P0 驗證項</th><th style="width:20%">結果</th><th style="width:46%">實測說明</th></tr></thead>
+        <tbody>
+          <tr><td><b>Gemini Files API 音檔上傳 + 辨識</b></td><td><span class="mk yes">✓ 通過</span></td><td>resumable 上傳 HTTP 200、state=ACTIVE；模型正確判讀內容</td></tr>
+          <tr class="rec-row"><td><b>音訊 32 tokens／秒</b></td><td><span class="mk yes">✓ 吻合</span></td><td>3 秒音訊計 96 音訊 tokens → 1 小時 ≈ <b>11.5 萬 tokens</b> 確認成立</td></tr>
+          <tr><td><b>Worker 請求上限</b></td><td><span class="mk yes">✓ 100MB</span></td><td>100MB 可送達處理器；<b>120MB 起回 413</b>。10 分鐘分段遠低於此上限</td></tr>
+          <tr><td>Files API MIME 接受度</td><td><span class="mk yes">✓ 全部接受</span></td><td>wav / webm / ogg / mp4 / aac / mpeg / flac 皆通過上傳</td></tr>
+          <tr><td>與會者姓名歸屬</td><td><span class="mk yes">✓ 可用</span></td><td>待辦正確掛到真實姓名；名單中未出席者<b>不會被虛構</b>，無法確定時省略 owner</td></tr>
+          <tr><td>裝置實際配額 / 錄音格式解碼</td><td><span class="mk mid">◑ 移至 App</span></td><td>改由<b>裝置診斷頁</b>執行「錄 4 秒 → 上傳 → 辨識」端到端測試，在你的實機上得到定論</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 

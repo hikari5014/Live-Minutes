@@ -39,16 +39,27 @@ const LANG_NAME: Record<string, string> = {
 const CHUNK_LIMIT = 100_000
 const CHUNK_SIZE = 80_000
 
-export async function generateMinutes(env: Env, transcript: string, title: string, lang: string): Promise<MinutesDoc> {
+export interface MinutesHints {
+  participants?: string
+  glossary?: string
+}
+
+export async function generateMinutes(
+  env: Env,
+  transcript: string,
+  title: string,
+  lang: string,
+  hints: MinutesHints = {},
+): Promise<MinutesDoc> {
   if (!env.GEMINI_API_KEY) throw new Error('missing GEMINI_API_KEY')
   const langName = LANG_NAME[lang] ?? '繁體中文'
-  if (transcript.length <= CHUNK_LIMIT) return oneShot(env, transcript, title, lang, langName)
+  if (transcript.length <= CHUNK_LIMIT) return oneShot(env, transcript, title, lang, langName, hints)
 
   // Long meeting: map each chunk to partial notes, then reduce/merge.
   const chunks = chunkText(transcript, CHUNK_SIZE)
   const partials: MinutesDoc[] = []
   for (let i = 0; i < chunks.length; i++) {
-    partials.push(await oneShot(env, chunks[i], `${title}（第 ${i + 1}/${chunks.length} 段）`, lang, langName))
+    partials.push(await oneShot(env, chunks[i], `${title}（第 ${i + 1}/${chunks.length} 段）`, lang, langName, hints))
   }
   return mergePartials(env, partials, title, lang, langName)
 }
@@ -57,8 +68,15 @@ function model(env: Env): string {
   return env.GEMINI_MODEL || 'gemini-2.5-flash'
 }
 
-async function oneShot(env: Env, transcript: string, title: string, lang: string, langName: string): Promise<MinutesDoc> {
-  const prompt = [
+async function oneShot(
+  env: Env,
+  transcript: string,
+  title: string,
+  lang: string,
+  langName: string,
+  hints: MinutesHints = {},
+): Promise<MinutesDoc> {
+  const lines = [
     `你是專業的會議記錄員。請閱讀以下會議逐字稿，輸出一份結構化的「${langName}」會議紀錄。`,
     '要求：',
     '- summary：3–5 句的會議摘要。',
@@ -66,11 +84,15 @@ async function oneShot(env: Env, transcript: string, title: string, lang: string
     '- actionItems：待辦事項，text 為任務內容；若逐字稿有提到負責人則填 owner，否則省略。',
     '- topics：主要討論主題，每個含 title 與數個重點 points。',
     `務必以「${langName}」輸出所有文字，且僅根據逐字稿內容，不要杜撰。`,
-    `會議標題：${title || '（未命名）'}`,
-    '',
-    '逐字稿：',
-    transcript,
-  ].join('\n')
+  ]
+  if (hints.participants) {
+    lines.push(
+      `本次與會者：${hints.participants}。`,
+      'actionItems 的 owner 請盡量對應到這些真實姓名（依逐字稿中誰承接該任務判斷），無法確定時就省略 owner。',
+    )
+  }
+  if (hints.glossary) lines.push(`專有名詞請採用以下正確寫法：${hints.glossary}。`)
+  const prompt = [...lines, `會議標題：${title || '（未命名）'}`, '', '逐字稿：', transcript].join('\n')
   const text = await callGemini(env, prompt, true)
   const parsed = JSON.parse(text) as Partial<MinutesDoc>
   return {

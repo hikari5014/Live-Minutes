@@ -43,8 +43,9 @@ export async function requestMinutesFromTranscript(
   transcript: string,
   title: string,
   lang: string,
+  hints: { participants?: string; glossary?: string } = {},
 ): Promise<MinutesDoc> {
-  return postJSON<MinutesDoc>('/api/minutes', { transcript, title, lang })
+  return postJSON<MinutesDoc>('/api/minutes', { transcript, title, lang, ...hints })
 }
 
 /** Fetch a short-lived Deepgram key so the browser/room can stream directly. */
