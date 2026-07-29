@@ -17,6 +17,9 @@ const defaultSettings: MeetingSettings = {
   translateChunkChars: 0,
   translateMaxWaitSec: 3,
   minutesLang: 'zh-Hant',
+  recordAudio: false,
+  audioRetentionDays: 30,
+  participants: '',
 }
 
 function loadSettings(): MeetingSettings {
@@ -44,6 +47,7 @@ export interface AppState {
   backendReady: boolean
   paused: boolean
   pausedMs: number
+  recording: boolean
 
   setSettings: (patch: Partial<MeetingSettings>) => void
   startSession: (roomId: string, startedAt: number, isHost: boolean) => void
@@ -60,6 +64,7 @@ export interface AppState {
   setBackendReady: (b: boolean) => void
   setPaused: (b: boolean) => void
   addPausedMs: (ms: number) => void
+  setRecording: (b: boolean) => void
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -77,6 +82,7 @@ export const useStore = create<AppState>((set) => ({
   backendReady: false,
   paused: false,
   pausedMs: 0,
+  recording: false,
 
   setSettings: (patch) =>
     set((s) => {
@@ -134,4 +140,5 @@ export const useStore = create<AppState>((set) => ({
   setBackendReady: (backendReady) => set({ backendReady }),
   setPaused: (paused) => set({ paused }),
   addPausedMs: (ms) => set((s) => ({ pausedMs: s.pausedMs + ms })),
+  setRecording: (recording) => set({ recording }),
 }))

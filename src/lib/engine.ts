@@ -7,6 +7,9 @@ import { WebSpeechASR, type ASRCallbacks, type ASREngine } from './asr'
 import { DeepgramASR } from './asr-deepgram'
 import { backendAvailable, getDeepgramToken, translateText, translateDetect, pushBackup } from './api'
 import { enableWakeLock, disableWakeLock } from './wakelock'
+import { recorder } from './recorder'
+import { requestPersist } from './storage'
+import { pruneOlderThan } from './audiodb'
 import { saveSession, saveDraft, clearDraft, getBackupKey, exportOne } from './history'
 import { joinAsHost, type HostRoom } from './room'
 import type { SessionMeta, Utterance } from './types'
@@ -125,6 +128,18 @@ class MeetingEngine {
       this.abortStart()
       return false
     }
+
+    // Audio recording (opt-in): kept on-device for a later high-quality
+    // transcript. Never blocks the meeting if it fails.
+    if (s.recordAudio) {
+      void requestPersist()
+      const roomId = useStore.getState().roomId as string
+      recorder
+        .start(roomId, s.title.trim() || '會議')
+        .then((started) => useStore.getState().setRecording(started))
+        .catch(() => useStore.getState().setRecording(false))
+      void pruneOlderThan(s.audioRetentionDays).catch(() => 0)
+    }
     return true
   }
 
@@ -180,6 +195,7 @@ class MeetingEngine {
     this.asr?.stop()
     this.asr = null
     this.pauseStart = Date.now()
+    recorder.pause()
     useStore.getState().setInterim(null)
     useStore.getState().setPaused(true)
   }
@@ -191,6 +207,7 @@ class MeetingEngine {
     this.fellBack = false
     useStore.getState().setPaused(false)
     if (!this.timer) this.timer = window.setInterval(() => useStore.getState().tick(), 1000)
+    recorder.resume()
     const ok = await this.startAsr()
     if (!ok) useStore.getState().setPaused(true)
   }
@@ -347,6 +364,8 @@ class MeetingEngine {
     st.setStatus('ended')
     st.setInterim(null)
     const meta = buildMeta()
+    await recorder.stop(meta.title).catch(() => null)
+    useStore.getState().setRecording(false)
     saveSession(meta, st.utterances)
     clearDraft() // meeting ended cleanly — drop the recovery draft
     const bkey = getBackupKey()

@@ -199,6 +199,20 @@ export default function Home() {
           <div className="mt-4 grid gap-3 border-t border-line pt-4">
             <Toggle checked={settings.diarization} onChange={(v) => setSettings({ diarization: v })} label="語者分離" hint="標記發言者 1／2／3（需 Deepgram）" />
             <Toggle checked={settings.generateMinutes} onChange={(v) => setSettings({ generateMinutes: v })} label="會後 AI 紀錄" hint="關閉可省 Gemini 額度" />
+            <Toggle
+              checked={settings.recordAudio}
+              onChange={(v) => setSettings({ recordAudio: v })}
+              label="錄音存檔"
+              hint="音檔只存這台裝置，供會後產生高品質逐字稿"
+            />
+            {settings.recordAudio && (
+              <input
+                value={settings.participants}
+                onChange={(e) => setSettings({ participants: e.target.value })}
+                placeholder="與會者（選填，逗號分隔）例：Mark、小美、John"
+                className="w-full rounded-xl border border-line bg-paper px-3 py-2 text-[13px] text-ink placeholder:text-faint"
+              />
+            )}
           </div>
         </section>
 

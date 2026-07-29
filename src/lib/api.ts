@@ -81,6 +81,43 @@ export async function fetchUsage(): Promise<UsageInfo | null> {
   }
 }
 
+export interface GeminiUtterance {
+  speaker: string
+  text: string
+  start: string // MM:SS within the segment
+}
+
+/** Send one audio segment to the backend for Gemini transcription.
+ *  mode 'text' returns a free-form reply (diagnostics); 'transcript' returns
+ *  structured utterances plus the speaker roster found in that segment. */
+export async function transcribeAudio(
+  blob: Blob,
+  mime: string,
+  opts: {
+    mode?: 'text' | 'transcript'
+    prompt?: string
+    lang?: string
+    participants?: string
+    knownSpeakers?: string[]
+    glossary?: string
+    name?: string
+  } = {},
+): Promise<{ text?: string; utterances?: GeminiUtterance[]; speakers?: string[] }> {
+  const fd = new FormData()
+  fd.append('audio', blob, opts.name ?? 'audio')
+  fd.append('mime', mime)
+  fd.append('mode', opts.mode ?? 'text')
+  if (opts.prompt) fd.append('prompt', opts.prompt)
+  if (opts.lang) fd.append('lang', opts.lang)
+  if (opts.participants) fd.append('participants', opts.participants)
+  if (opts.knownSpeakers?.length) fd.append('knownSpeakers', opts.knownSpeakers.join(','))
+  if (opts.glossary) fd.append('glossary', opts.glossary)
+  const res = await fetch('/api/audio', { method: 'POST', body: fd })
+  const data = (await res.json().catch(() => ({}))) as { error?: string; text?: string; utterances?: GeminiUtterance[]; speakers?: string[] }
+  if (!res.ok) throw new Error(data.error || `audio ${res.status}`)
+  return data
+}
+
 export interface BackupItem {
   id: string
   payload: string

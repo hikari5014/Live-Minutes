@@ -4,6 +4,7 @@ import { generateMinutes } from './gemini'
 import { grantDeepgramToken } from './deepgram'
 import { getUsage } from './usage'
 import { putBackups, getBackups, validKey, type BackupItem } from './backup'
+import { uploadToGemini, listenText, transcribeSegment } from './audio'
 import { getSessionFromD1, getTranscriptFromD1, saveMinutesToD1 } from './db'
 import { MeetingRoom } from './room'
 
@@ -115,6 +116,42 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     const data = await getSessionFromD1(env, sessMatch[1]).catch(() => null)
     if (!data) return json({ error: 'not found' }, 404)
     return json(data)
+  }
+
+  // Audio → Gemini. multipart/form-data: audio (file) + options.
+  // mode=text  → free-form listen (diagnostics); mode=transcript → structured.
+  if (request.method === 'POST' && p === '/api/audio') {
+    if (!env.GEMINI_API_KEY) return json({ error: 'gemini not configured' }, 501)
+    try {
+      const form = await request.formData()
+      // Workers' FormDataEntryValue is string | File; duck-type instead of
+      // instanceof so this compiles against @cloudflare/workers-types.
+      const entry = form.get('audio') as unknown as { arrayBuffer?: () => Promise<ArrayBuffer>; type?: string } | null
+      if (!entry || typeof entry.arrayBuffer !== 'function') return json({ error: 'audio required' }, 400)
+      const mime = String(form.get('mime') || entry.type || 'audio/webm')
+      const bytes = await entry.arrayBuffer()
+      if (bytes.byteLength === 0) return json({ error: 'empty audio' }, 400)
+      const uri = await uploadToGemini(env, bytes, mime, String(form.get('name') || 'meeting-audio'))
+
+      if (String(form.get('mode') || 'transcript') === 'text') {
+        const prompt = String(form.get('prompt') || '請逐字聽寫這段音訊。')
+        return json({ text: await listenText(env, uri, mime, prompt) })
+      }
+      const csv = (k: string) =>
+        String(form.get(k) || '')
+          .split(/[,，、]/)
+          .map((x) => x.trim())
+          .filter(Boolean)
+      const out = await transcribeSegment(env, uri, mime, {
+        lang: String(form.get('lang') || 'zh-Hant'),
+        participants: csv('participants'),
+        knownSpeakers: csv('knownSpeakers'),
+        glossary: csv('glossary'),
+      })
+      return json(out)
+    } catch (e) {
+      return json({ error: String(e) }, 502)
+    }
   }
 
   if (p === '/api/backup') {
