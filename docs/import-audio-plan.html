@@ -291,6 +291,34 @@ td small{color:var(--faint); display:block; margin-top:2px}
       ※ 本文描述的是「整段錄音一次讀取 → 分講者 → 總結」這個<b>運作模式</b>。
       我沒有 Genspark 內部實作的資訊，因此不對其做法做任何斷言；以下所有數據皆為本專案自行實測。
     </p>
+
+    <div class="callout callout--ok" style="margin-top:20px">
+      <h4>✅ 實作進度：I1–I3 已全數完成並上線</h4>
+      <p>
+        本計劃書的三個階段都已實作、驗證並部署。實作前先驗證了 I2 賴以成立的假設——
+        <b>Gemini 是否遵守「只處理某個時間範圍」的指示</b>：以每分鐘不同音高的測試檔提問，
+        針對<b>單一時間視窗</b>的相對判斷 <b>3／3 正確</b>；但要求它<b>一次列舉全部五分鐘</b>則會出錯。
+        因此設計上採「一次只問一個視窗」，並以<b>重疊 15 秒＋去重</b>吸收邊界誤差——
+        這正是「先驗證再設計」與憑印象實作的差別。
+      </p>
+    </div>
+
+    <div class="tablewrap" style="margin-top:16px">
+      <table>
+        <thead><tr><th style="width:16%">階段</th><th style="width:50%">交付內容</th><th style="width:34%">驗證</th></tr></thead>
+        <tbody>
+          <tr><td><b>I1</b></td>
+            <td>/import 頁面、預檢（時長／大小／額度預估）、整檔上傳辨識、落地成標準會議、首頁一級入口</td>
+            <td>13 項單元測試（視窗規劃／去重／時間格式）</td></tr>
+          <tr><td><b>I2</b></td>
+            <td>可續做的匯入工作（上傳一次、逐視窗檢查點）、超大檔具體引導、影片額度警告</td>
+            <td>5 項單元測試（工作續存／過期／清除）</td></tr>
+          <tr class="rec-row"><td><b>I3</b></td>
+            <td>系統分享選單接收、批次匯入、紀錄頁就地調整與會者與語言重跑</td>
+            <td>建置產物確認：manifest <code>share_target</code>、SW <code>importScripts</code></td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
