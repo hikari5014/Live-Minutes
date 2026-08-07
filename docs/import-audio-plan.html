@@ -1,0 +1,698 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Live Minutes ｜ 匯入錄音 · 檔案優先會議紀錄 計劃書</title>
+<meta name="description" content="不需即時字幕，直接匯入整段錄音檔，由 AI 分講者、產出逐字稿與會議紀錄。含實測數據、限制邊界、UI 流程、復用盤點、路線圖與決策點。" />
+<meta name="color-scheme" content="light dark" />
+<style>
+:root{
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+               "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --paper:#F4F6F7; --surface:#FFFFFF; --surface-2:#EDF1F3;
+  --ink:#0F1720; --body:#2A333D; --muted:#5E6874; --faint:#8B949F;
+  --border:#E2E7EB; --border-strong:#CBD3D9;
+  --brand:#0C8F94; --brand-ink:#076C70; --brand-tint:#E1F2F2;
+  --zh:#B26A12; --zh-ink:#8A5410; --zh-tint:#F8EDD9;
+  --live:#D9363E; --live-tint:#FBE5E6;
+  --ok:#2E8B57; --ok-tint:#E3F2E9;
+  --warn:#B9722A; --warn-tint:#F8ECDD; --bad:#C13A3A;
+  --g:#4285F4; --g-tint:#E4EDFD;
+  --shadow-sm:0 1px 2px rgba(16,23,32,.06), 0 1px 3px rgba(16,23,32,.05);
+  --shadow-md:0 6px 20px rgba(16,23,32,.08), 0 2px 6px rgba(16,23,32,.05);
+  --shadow-lg:0 24px 60px rgba(16,23,32,.14), 0 8px 24px rgba(16,23,32,.08);
+  --radius:14px; --radius-lg:22px; --maxw:1120px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --paper:#0A0E13; --surface:#141A21; --surface-2:#1B222B;
+    --ink:#EDF1F5; --body:#C2CBD4; --muted:#8A95A0; --faint:#69737D;
+    --border:#242E38; --border-strong:#334049;
+    --brand:#25C6CC; --brand-ink:#7BE4E8; --brand-tint:rgba(37,198,204,.12);
+    --zh:#E1A85C; --zh-ink:#F0C489; --zh-tint:rgba(225,168,92,.14);
+    --live:#FF5A60; --live-tint:rgba(255,90,96,.14);
+    --ok:#49B87C; --ok-tint:rgba(73,184,124,.14);
+    --warn:#E1A85C; --warn-tint:rgba(225,168,92,.14); --bad:#FF6B6B;
+    --g:#8AB4F8; --g-tint:rgba(138,180,248,.14);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow-md:0 8px 24px rgba(0,0,0,.5); --shadow-lg:0 28px 70px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="light"]{
+  --paper:#F4F6F7; --surface:#FFFFFF; --surface-2:#EDF1F3;
+  --ink:#0F1720; --body:#2A333D; --muted:#5E6874; --faint:#8B949F;
+  --border:#E2E7EB; --border-strong:#CBD3D9;
+  --brand:#0C8F94; --brand-ink:#076C70; --brand-tint:#E1F2F2;
+  --zh:#B26A12; --zh-ink:#8A5410; --zh-tint:#F8EDD9;
+  --live:#D9363E; --live-tint:#FBE5E6;
+  --ok:#2E8B57; --ok-tint:#E3F2E9; --warn:#B9722A; --warn-tint:#F8ECDD; --bad:#C13A3A;
+  --g:#4285F4; --g-tint:#E4EDFD;
+  --shadow-sm:0 1px 2px rgba(16,23,32,.06), 0 1px 3px rgba(16,23,32,.05);
+  --shadow-md:0 6px 20px rgba(16,23,32,.08), 0 2px 6px rgba(16,23,32,.05);
+  --shadow-lg:0 24px 60px rgba(16,23,32,.14), 0 8px 24px rgba(16,23,32,.08);
+}
+:root[data-theme="dark"]{
+  --paper:#0A0E13; --surface:#141A21; --surface-2:#1B222B;
+  --ink:#EDF1F5; --body:#C2CBD4; --muted:#8A95A0; --faint:#69737D;
+  --border:#242E38; --border-strong:#334049;
+  --brand:#25C6CC; --brand-ink:#7BE4E8; --brand-tint:rgba(37,198,204,.12);
+  --zh:#E1A85C; --zh-ink:#F0C489; --zh-tint:rgba(225,168,92,.14);
+  --live:#FF5A60; --live-tint:rgba(255,90,96,.14);
+  --ok:#49B87C; --ok-tint:rgba(73,184,124,.14); --warn:#E1A85C; --warn-tint:rgba(225,168,92,.14); --bad:#FF6B6B;
+  --g:#8AB4F8; --g-tint:rgba(138,180,248,.14);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4); --shadow-md:0 8px 24px rgba(0,0,0,.5); --shadow-lg:0 28px 70px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0; background:var(--paper); color:var(--body); font-family:var(--font-sans);
+  font-size:16px; line-height:1.68; -webkit-font-smoothing:antialiased; overflow-x:hidden}
+h1,h2,h3,h4{color:var(--ink); line-height:1.2; text-wrap:balance; margin:0}
+p{margin:0}
+a{color:var(--brand-ink); text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:var(--font-mono); font-size:.86em; background:var(--surface-2); padding:1.5px 5px; border-radius:5px}
+.tnum{font-variant-numeric:tabular-nums}
+.wrap{max-width:var(--maxw); margin:0 auto; padding:0 22px}
+.eyebrow{font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--brand-ink); display:inline-flex; align-items:center; gap:8px}
+.eyebrow::before{content:""; width:22px; height:2px; background:var(--brand); border-radius:2px}
+.lead{font-size:clamp(16px,1.1vw+13px,19px); color:var(--muted); line-height:1.62}
+
+.topbar{position:sticky; top:0; z-index:50; backdrop-filter:saturate(1.4) blur(12px);
+  background:color-mix(in srgb, var(--paper) 82%, transparent); border-bottom:1px solid var(--border)}
+.topbar__inner{max-width:var(--maxw); margin:0 auto; padding:11px 22px; display:flex; align-items:center; gap:14px}
+.brand{display:flex; align-items:center; gap:10px; font-weight:800; color:var(--ink)}
+.brand__mark{width:26px; height:26px; border-radius:8px; position:relative; flex:0 0 auto;
+  background:radial-gradient(120% 120% at 30% 20%, var(--brand) 0%, var(--brand-ink) 70%); box-shadow:var(--shadow-sm)}
+.brand__mark::after{content:""; position:absolute; inset:0; border-radius:8px;
+  background:radial-gradient(circle at 68% 70%, rgba(255,255,255,.85) 0 3px, transparent 4px)}
+.brand small{font-weight:600; color:var(--faint)}
+.topnav{margin-left:auto; display:flex; gap:2px; flex-wrap:wrap}
+.topnav a{color:var(--muted); font-size:13.5px; font-weight:600; padding:7px 10px; border-radius:8px}
+.topnav a:hover{color:var(--ink); background:var(--surface-2); text-decoration:none}
+.theme-btn{border:1px solid var(--border-strong); background:var(--surface); color:var(--ink);
+  width:38px; height:38px; border-radius:10px; cursor:pointer; display:inline-grid; place-items:center; flex:0 0 auto}
+.theme-btn svg{width:18px; height:18px}
+@media (max-width:1000px){ .topnav{display:none} }
+
+.hero{position:relative; overflow:hidden; border-bottom:1px solid var(--border)}
+.hero__grid{position:absolute; inset:0; opacity:.55; pointer-events:none;
+  background-image:radial-gradient(58% 52% at 84% -8%, var(--g-tint) 0%, transparent 60%),
+                   radial-gradient(46% 46% at 4% 6%, var(--brand-tint) 0%, transparent 58%)}
+.hero__inner{max-width:var(--maxw); margin:0 auto; padding:58px 22px 52px; position:relative}
+.hero h1{font-size:clamp(34px,5.6vw,62px); font-weight:850; letter-spacing:-.035em; margin:16px 0 0}
+.hero h1 .accent{color:var(--brand)}
+.hero__sub{margin-top:18px; max-width:62ch; font-size:clamp(16px,1.3vw,20px); color:var(--muted)}
+.hero__sub b{color:var(--body); font-weight:700}
+.chips{display:flex; flex-wrap:wrap; gap:9px; margin-top:26px}
+.chip{font-size:13px; font-weight:600; color:var(--body); background:var(--surface);
+  border:1px solid var(--border); border-radius:999px; padding:7px 13px; box-shadow:var(--shadow-sm);
+  display:inline-flex; align-items:center; gap:7px}
+.chip i{width:7px; height:7px; border-radius:50%; background:var(--brand)}
+.chip.g i{background:var(--g)} .chip.ok i{background:var(--ok)} .chip.zh i{background:var(--zh)}
+.hero__meta{display:flex; flex-wrap:wrap; gap:24px 40px; margin-top:34px}
+.hero__meta div{display:flex; flex-direction:column}
+.hero__meta .k{font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint); font-weight:700}
+.hero__meta .v{font-size:18px; font-weight:750; color:var(--ink); margin-top:3px}
+
+.section{padding:60px 0; border-bottom:1px solid var(--border)}
+.section__head{max-width:76ch; margin-bottom:30px}
+.section h2{font-size:clamp(25px,3vw,35px); font-weight:800; letter-spacing:-.02em; margin-top:12px}
+.section h2 + p{margin-top:13px}
+.grid2{display:grid; grid-template-columns:1fr 1fr; gap:18px}
+.grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px}
+@media (max-width:860px){ .grid2,.grid3{grid-template-columns:1fr} }
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow-sm)}
+.card h3{font-size:17px; font-weight:750; display:flex; align-items:center; gap:10px}
+.card p{margin-top:9px; color:var(--muted); font-size:14.5px}
+.card ul{margin:10px 0 0; padding-left:18px; color:var(--muted); font-size:14px}
+.card li{margin-top:5px}
+.num{width:28px; height:28px; border-radius:8px; background:var(--brand-tint); color:var(--brand-ink);
+  display:grid; place-items:center; font-weight:800; font-size:14px; flex:0 0 auto}
+.num.g{background:var(--g-tint); color:var(--g)}
+.num.zh{background:var(--zh-tint); color:var(--zh-ink)}
+
+.verdict{display:grid; grid-template-columns:auto 1fr; gap:24px; align-items:center;
+  background:linear-gradient(120deg, var(--brand-tint), color-mix(in srgb,var(--g-tint) 70%, transparent));
+  border:1px solid var(--border); border-radius:var(--radius-lg); padding:26px; box-shadow:var(--shadow-md)}
+.verdict__badge{width:104px; height:104px; border-radius:50%; display:grid; place-items:center; text-align:center;
+  background:var(--surface); border:2px solid var(--brand); box-shadow:var(--shadow-sm)}
+.verdict__badge b{font-size:15px; color:var(--brand-ink); font-weight:850; line-height:1.25}
+.verdict__badge small{font-size:10.5px; color:var(--muted); letter-spacing:.1em; display:block; margin-top:4px}
+.verdict h3{font-size:21px}
+.verdict p{margin-top:9px; color:var(--body); font-size:15px}
+@media (max-width:640px){ .verdict{grid-template-columns:1fr} }
+
+.callout{border:1px solid var(--border); border-left-width:4px; border-radius:var(--radius);
+  padding:17px 19px; background:var(--surface); box-shadow:var(--shadow-sm)}
+.callout + .callout{margin-top:12px}
+.callout h4{font-size:15px; display:flex; align-items:center; gap:9px}
+.callout p{margin-top:7px; font-size:14.5px; color:var(--body)}
+.callout--ok{border-left-color:var(--ok); background:color-mix(in srgb,var(--ok-tint) 55%, var(--surface))}
+.callout--ok h4{color:var(--ok)}
+.callout--warn{border-left-color:var(--warn); background:color-mix(in srgb,var(--warn-tint) 55%, var(--surface))}
+.callout--warn h4{color:var(--warn)}
+.callout--bad{border-left-color:var(--bad); background:color-mix(in srgb,var(--live-tint) 55%, var(--surface))}
+.callout--bad h4{color:var(--bad)}
+.callout--info{border-left-color:var(--brand); background:color-mix(in srgb,var(--brand-tint) 45%, var(--surface))}
+.callout--info h4{color:var(--brand-ink)}
+
+.tablewrap{overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius);
+  box-shadow:var(--shadow-sm); background:var(--surface)}
+table{border-collapse:collapse; width:100%; min-width:640px; font-size:14px}
+thead th{background:var(--surface-2); color:var(--ink); text-align:left; font-weight:750; font-size:12.5px;
+  letter-spacing:.03em; padding:12px 15px; border-bottom:1px solid var(--border)}
+tbody td{padding:12px 15px; border-bottom:1px solid var(--border); color:var(--body); vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:color-mix(in srgb,var(--surface-2) 55%, transparent)}
+td b{color:var(--ink); font-weight:750}
+td small{color:var(--faint); display:block; margin-top:2px}
+.mk{font-weight:800} .mk.yes{color:var(--ok)} .mk.no{color:var(--bad)} .mk.mid{color:var(--warn)}
+.rec-row{background:color-mix(in srgb,var(--brand-tint) 40%, transparent) !important}
+
+/* flow */
+.flow{display:grid; gap:12px}
+.step{display:grid; grid-template-columns:auto 1fr; gap:16px; align-items:start;
+  border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
+  padding:16px 18px; box-shadow:var(--shadow-sm)}
+.step__n{width:34px; height:34px; border-radius:10px; display:grid; place-items:center;
+  background:var(--brand); color:#fff; font-weight:850; font-size:14px; flex:0 0 auto}
+.step h4{font-size:15.5px}
+.step p{margin-top:6px; color:var(--muted); font-size:14px}
+
+/* wireframe */
+.wire{border:1px solid var(--border-strong); border-radius:18px; background:var(--surface);
+  padding:14px; box-shadow:var(--shadow-md); max-width:380px; margin:0 auto}
+.wire__bar{display:flex; align-items:center; gap:8px; padding-bottom:10px; border-bottom:1px solid var(--border); font-size:12px; color:var(--muted)}
+.drop{border:2px dashed var(--border-strong); border-radius:14px; padding:26px 16px; text-align:center; margin-top:12px;
+  background:color-mix(in srgb,var(--brand-tint) 35%, transparent)}
+.drop b{display:block; color:var(--ink); font-size:14px}
+.drop span{display:block; color:var(--faint); font-size:11.5px; margin-top:4px}
+.wfield{margin-top:10px; border:1px solid var(--border); border-radius:10px; padding:9px 11px; font-size:12px; color:var(--muted); background:var(--paper)}
+.wbtn{margin-top:12px; border-radius:11px; background:var(--brand); color:#fff; text-align:center; padding:11px; font-weight:800; font-size:13px}
+.wmeta{display:flex; justify-content:space-between; margin-top:10px; font-size:11px; color:var(--faint)}
+
+.phases{display:grid; gap:14px}
+.phase{display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:start;
+  border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); padding:18px 20px; box-shadow:var(--shadow-sm)}
+.phase__n{width:44px; height:44px; border-radius:12px; display:grid; place-items:center;
+  background:var(--brand); color:#fff; font-weight:850; font-size:15px; flex:0 0 auto}
+.phase--later .phase__n{background:var(--surface-2); color:var(--muted)}
+.phase h3{font-size:16.5px; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.phase p{margin-top:7px; color:var(--muted); font-size:14.5px}
+.phase ul{margin:9px 0 0; padding-left:18px; font-size:14px; color:var(--body)}
+.phase li{margin-top:4px}
+.badge{font-size:11px; font-weight:800; letter-spacing:.06em; padding:3px 9px; border-radius:999px;
+  background:var(--surface-2); color:var(--muted); text-transform:uppercase}
+.badge.now{background:var(--ok-tint); color:var(--ok)}
+.badge.next{background:var(--zh-tint); color:var(--zh-ink)}
+
+.decide{display:grid; gap:12px}
+.decide__item{border:1px solid var(--border); border-left:4px solid var(--zh); border-radius:var(--radius);
+  background:var(--surface); padding:16px 18px; box-shadow:var(--shadow-sm)}
+.decide__item h4{font-size:15px; color:var(--ink)}
+.decide__item p{margin-top:6px; font-size:14px; color:var(--muted)}
+.decide__item .rec{margin-top:8px; font-size:13.5px; color:var(--brand-ink); font-weight:700}
+
+.note{font-size:13px; color:var(--faint); margin-top:14px}
+.footer{padding:44px 0 64px; color:var(--muted)}
+.footer .wrap{display:flex; flex-wrap:wrap; gap:18px; align-items:center; justify-content:space-between}
+.footer small{font-size:12.5px; color:var(--faint)}
+@media print{ .topbar,.theme-btn{display:none} .section{break-inside:avoid} }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__inner">
+    <div class="brand"><span class="brand__mark"></span> Live Minutes <small>· 匯入錄音</small></div>
+    <nav class="topnav">
+      <a href="#idea">構想確認</a>
+      <a href="#stock">現況盤點</a>
+      <a href="#shift">定位轉變</a>
+      <a href="#tech">技術可行性</a>
+      <a href="#limits">限制邊界</a>
+      <a href="#flow">使用流程</a>
+      <a href="#ui">介面設計</a>
+      <a href="#roadmap">路線圖</a>
+      <a href="#risk">風險</a>
+      <a href="#decide">決策點</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" aria-label="切換深淺色主題">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>
+    </button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero__grid"></div>
+  <div class="hero__inner">
+    <div class="eyebrow">計劃書 · 匯入錄音 · 2026</div>
+    <h1>匯入錄音，<br /><span class="accent">直接產出</span>會議紀錄</h1>
+    <p class="hero__sub">
+      不需要現場開著 App、不需要即時字幕——把<b>任何一段錄音檔</b>丟進來（Zoom／Teams 錄影、手機語音備忘錄、他人轉寄的檔案），
+      由 AI 一次讀完、<b>分辨講者</b>、產出逐字稿與結構化會議紀錄。
+      這條路線把 Live Minutes 從「即時字幕工具」擴張成<b>會議情報工具</b>：現場即時只是眾多輸入之一。
+    </p>
+    <div class="chips">
+      <span class="chip g"><i></i>Gemini 音檔直讀</span>
+      <span class="chip"><i></i>檔案優先</span>
+      <span class="chip zh"><i></i>自動分講者</span>
+      <span class="chip ok"><i></i>八成地基已完成</span>
+    </div>
+    <div class="hero__meta">
+      <div><span class="k">新增頁面</span><span class="v">/import</span></div>
+      <div><span class="k">實測 5 分鐘檔</span><span class="v tnum">9.2 MB · 5 秒</span></div>
+      <div><span class="k">單次上限</span><span class="v tnum">100 MB</span></div>
+      <div><span class="k">既有可復用</span><span class="v">約 80%</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 1. 構想確認 -->
+<section class="section" id="idea">
+  <div class="wrap">
+    <div class="verdict">
+      <div class="verdict__badge"><b>你的判斷<br />正確</b><small>但要更進一步</small></div>
+      <div>
+        <h3>是的，要獨立頁面——而且它不該只是「另一個頁面」</h3>
+        <p>
+          你的直覺對：這個流程與現場錄音<b>心智模型完全不同</b>（沒有會議進行中、沒有計時、沒有分享房間），
+          硬塞進現有畫面只會讓兩者都難用。但我建議再往前一步——
+          把它放在<b>首頁的一級入口</b>，與「開始錄音」並列，而不是藏在設定裡。
+          理由很實際：<b>很多會議你根本不在現場開 App</b>，錄音是事後才拿到的（Zoom 錄影、同事轉寄、手機備忘錄）。
+          對這些情境，「匯入」才是主要入口，不是附屬功能。
+        </p>
+      </div>
+    </div>
+    <p class="note">
+      ※ 本文描述的是「整段錄音一次讀取 → 分講者 → 總結」這個<b>運作模式</b>。
+      我沒有 Genspark 內部實作的資訊，因此不對其做法做任何斷言；以下所有數據皆為本專案自行實測。
+    </p>
+  </div>
+</section>
+
+<!-- 2. 現況盤點 -->
+<section class="section" id="stock">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">01 · 現況盤點</div>
+      <h2>好消息：地基已經蓋好八成</h2>
+      <p class="lead">
+        上一輪的 P2（音檔 → Gemini → 權威版逐字稿）已經把最難的後端管線做完並上線。
+        這次要補的主要是<b>「檔案進得來」</b>與<b>「獨立的流程」</b>，而不是重做核心。
+      </p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3><span class="num">✓</span>已完成可直接復用</h3>
+        <ul>
+          <li><code>/api/audio</code>：Files API 上傳 ＋ 結構化逐字稿（含講者、時間戳）</li>
+          <li>講者名單<b>跨段延續</b>（同一人不會換編號）</li>
+          <li>與會者名單 ＋ 術語表（提升人名與待辦歸屬）</li>
+          <li>會議紀錄生成（長逐字稿分段 map-reduce）</li>
+          <li>逐字稿<b>編輯</b>、講者<b>命名</b>、重新生成</li>
+          <li>點句<b>回放</b>音訊（時間戳 → 音檔定位）</li>
+          <li>資料夾 / 搜尋 / 封存 / 雲端備份 / 匯出</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="num zh">＋</span>這次要新做</h3>
+        <ul>
+          <li><b>/import 頁面</b>：選檔、拖放、iOS「檔案」與 iCloud</li>
+          <li>檔案<b>驗證與預檢</b>：格式、大小、時長、額度預估</li>
+          <li><b>單一檔案</b>的處理管線（現有的是自家錄音的分段）</li>
+          <li>處理<b>進度與可續傳</b>（長檔不能讓使用者盯著空白畫面）</li>
+          <li>超長檔的<b>時間視窗切分</b>（第二階段）</li>
+          <li>選配：<b>系統分享選單</b>接收、影片檔處理</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout callout--warn" style="margin-top:18px">
+      <h4>⚠ 一個關鍵技術差異：外來檔案不能像自家錄音那樣切</h4>
+      <p>
+        我們自己的錄音是<b>一開始就分段錄</b>的，每段都是獨立完整的媒體檔，所以能逐段上傳、逐段辨識。
+        但使用者匯入的是<b>單一容器檔</b>（m4a/mp3/mp4），<b>不能用位元組切割</b>——切開就壞了。
+        因此匯入路線必須另設計：<b>整檔上傳一次</b>，再依需要用時間視窗分批辨識。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 3. 定位轉變 -->
+<section class="section" id="shift">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">02 · 產品定位</div>
+      <h2>這不只是加功能，是把入口從「當下」解放到「任何時候」</h2>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:22%">面向</th><th style="width:39%">現在（即時優先）</th><th style="width:39%">加入匯入後</th></tr></thead>
+        <tbody>
+          <tr><td><b>使用時機</b></td><td>必須<b>會議當下</b>就開著 App</td><td>會議後任何時間，甚至幾天後</td></tr>
+          <tr><td><b>音源</b></td><td>麥克風、分頁音訊</td><td>＋ 任何錄音檔（Zoom／Teams／語音備忘錄／他人轉寄）</td></tr>
+          <tr><td><b>錯過會議</b></td><td>沒救</td><td>拿到錄音就能補做紀錄</td></tr>
+          <tr><td><b>適用內容</b></td><td>會議</td><td>＋ 演講、訪談、課程、Podcast</td></tr>
+          <tr class="rec-row"><td><b>失敗成本</b></td><td>現場沒開好 = 整場沒了</td><td><b>錄音還在就能重做</b>，且可重跑、可換語言</td></tr>
+          <tr><td><b>裝置限制</b></td><td>iOS 抓不到其他 App 的聲音</td><td><b>繞過了</b>：用系統錄音錄好再匯入即可</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout--ok" style="margin-top:18px">
+      <h4>✅ 附帶解掉一個先前無解的問題</h4>
+      <p>
+        先前結論是「iOS 無法讀取其他 App 的音訊」——這對 iPhone 上的線上會議是硬限制。
+        但有了匯入：使用者可以用 <b>iOS 內建螢幕錄影／語音備忘錄</b>先錄下來，再把檔案匯入本 App。
+        <b>限制沒有消失，但被繞過了。</b>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 4. 技術可行性 -->
+<section class="section" id="tech">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">03 · 技術可行性</div>
+      <h2>已實測的數據（非估算）</h2>
+      <p class="lead">以下數字都是對本專案線上環境與 Gemini API 實際測得。</p>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:30%">項目</th><th style="width:24%">實測值</th><th style="width:46%">意義</th></tr></thead>
+        <tbody>
+          <tr class="rec-row"><td><b>5 分鐘音檔全程往返</b></td><td class="tnum"><b>9.2 MB · 5 秒</b></td><td>上傳＋Files API＋辨識的基礎設施夠快，不是瓶頸</td></tr>
+          <tr><td>音訊 token 計費</td><td class="tnum">32 tokens／秒</td><td>1 小時 ≈ 11.5 萬 tokens</td></tr>
+          <tr><td>模型輸入上限</td><td class="tnum">1,048,576 tokens</td><td>≈ <b>9 小時</b>音訊，不是限制</td></tr>
+          <tr><td>模型<b>輸出</b>上限</td><td class="tnum">65,536 tokens</td><td>1 小時中文逐字稿約 8k–14k tokens → <b>約 4 小時內單次可完成</b></td></tr>
+          <tr><td>Worker 單次請求上限</td><td class="tnum"><b>100 MB</b></td><td>120MB 起回 413。<b>這才是真正的天花板</b></td></tr>
+          <tr><td>Files API 接受格式</td><td>wav / mp3 / aac / mp4 / ogg / webm / flac</td><td>常見錄音格式都能直接吃</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout--info" style="margin-top:18px">
+      <h4>💡 結論：一般會議「單次呼叫」就夠了</h4>
+      <p>
+        壓縮音檔 1 小時約 15–50 MB，遠低於 100MB 上限；輸出 token 也在範圍內。
+        因此<b>典型 1–2 小時會議可以整檔上傳、一次辨識完成</b>，不需要複雜的切分機制。
+        切分只在<b>超長或未壓縮檔</b>時才需要，列為第二階段。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 5. 限制 -->
+<section class="section" id="limits">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">04 · 限制邊界</div>
+      <h2>什麼可以、什麼不行</h2>
+    </div>
+    <div class="grid3">
+      <div class="card">
+        <h3><span class="num">✓</span>順暢區</h3>
+        <p><b>≤ 100 MB 且 ≤ 2 小時</b>的壓縮音檔（m4a / mp3 / opus）。整檔上傳、一次處理，這涵蓋絕大多數會議。</p>
+      </div>
+      <div class="card">
+        <h3><span class="num zh">△</span>需處理區</h3>
+        <p><b>&gt; 100 MB</b>（未壓縮 WAV 約 50 分鐘就超過、或超長會議）。需時間視窗分批，或請使用者先壓縮。</p>
+      </div>
+      <div class="card">
+        <h3><span class="num zh">△</span>影片檔</h3>
+        <p>Zoom/Teams 錄影常是 <code>.mp4</code>。Gemini 可讀，但<b>影像的 token 成本遠高於音訊</b>，會大量吃額度——需要偵測並警告，或引導只匯入音訊。</p>
+      </div>
+    </div>
+    <div class="callout callout--warn" style="margin-top:18px">
+      <h4>⚠ 分講者的老問題依然存在</h4>
+      <p>
+        AI 依聲音與內容<b>推論</b>講者，不是專門的聲學語者分離：長音檔標籤可能漂移、音色相近會混、搶話處理弱、
+        遠場單麥克風更難。<b>與會者名單能大幅改善</b>（可對到真實姓名），但無法保證逐句完美。
+        這點在匯入情境更明顯，因為錄音品質不由我們控制。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- 6. 流程 -->
+<section class="section" id="flow">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">05 · 使用流程</div>
+      <h2>六步，從檔案到會議紀錄</h2>
+    </div>
+    <div class="flow">
+      <div class="step"><div class="step__n">1</div><div>
+        <h4>選擇音檔</h4>
+        <p>點按選檔（iOS 可從「檔案」「iCloud」「語音備忘錄」匯出的檔案挑選）或桌機拖放。選配：從其他 App 的分享選單直接送進來。</p>
+      </div></div>
+      <div class="step"><div class="step__n">2</div><div>
+        <h4>預檢與預估</h4>
+        <p>讀取格式、大小、<b>時長</b>，估算 token 用量與大約處理時間，超過上限時<b>先告知並給替代做法</b>，而不是讓它跑到一半失敗。</p>
+      </div></div>
+      <div class="step"><div class="step__n">3</div><div>
+        <h4>填入脈絡（選填但影響很大）</h4>
+        <p>會議標題、<b>與會者名單</b>、術語表、輸出語言。與會者名單是分講者品質的最大槓桿。</p>
+      </div></div>
+      <div class="step"><div class="step__n">4</div><div>
+        <h4>上傳與辨識</h4>
+        <p>整檔上傳 → Gemini 讀完 → 產出<b>分講者、含時間戳、補標點、去贅字、繁體</b>的逐字稿。全程顯示進度，長檔可分批並保留已完成部分。</p>
+      </div></div>
+      <div class="step"><div class="step__n">5</div><div>
+        <h4>生成會議紀錄</h4>
+        <p>沿用既有管線：摘要、決議事項、待辦（<b>歸屬到真實姓名</b>）、主題重點。可換語言重新生成。</p>
+      </div></div>
+      <div class="step"><div class="step__n">6</div><div>
+        <h4>落地成一場「會議」</h4>
+        <p>結果存成與現場錄音<b>完全相同的資料結構</b>——因此自動獲得：編輯、講者命名、<b>點句回放</b>、資料夾、搜尋、匯出、雲端備份。</p>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. UI -->
+<section class="section" id="ui">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">06 · 介面設計</div>
+      <h2>新頁面 <code>/import</code> 與入口配置</h2>
+      <p class="lead">首頁提供兩個並列的一級入口：<b>開始錄音</b>（現場）與<b>匯入錄音</b>（事後）。</p>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="wire">
+          <div class="wire__bar"><span class="brand__mark" style="width:18px;height:18px"></span> Live Minutes · 匯入錄音</div>
+          <div class="drop">
+            <b>⬆︎ 選擇或拖放音檔</b>
+            <span>m4a · mp3 · wav · mp4 · webm｜上限 100 MB</span>
+          </div>
+          <div class="wfield">會議標題（選填）</div>
+          <div class="wfield">與會者：Mark、小美、John</div>
+          <div class="wfield">術語表：Sprint 24、Cloudflare</div>
+          <div class="wfield">紀錄語言：繁體中文 ▾</div>
+          <div class="wmeta"><span>時長 58:12 · 42.3 MB</span><span>約 11.2 萬 tokens</span></div>
+          <div class="wbtn">開始辨識並產生紀錄</div>
+        </div>
+        <p class="note" style="text-align:center">匯入頁：檔案 → 脈絡 → 預估 → 執行</p>
+      </div>
+      <div>
+        <div class="card">
+          <h3><span class="num g">A</span>入口設計</h3>
+          <ul>
+            <li><b>首頁</b>：「開始錄音」大鈕下方並列「匯入錄音」次級鈕</li>
+            <li><b>錄音管理頁</b>：頂部「匯入外部音檔」</li>
+            <li><b>選配</b>：PWA 分享目標（Android 可從其他 App 直接分享進來；iOS 不支援此機制）</li>
+          </ul>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3><span class="num g">B</span>處理中的畫面</h3>
+          <ul>
+            <li>階段式進度（上傳 → 辨識 → 生成紀錄），非假的百分比</li>
+            <li>長檔分批時顯示「第 N/M 段」並<b>即時顯示已完成的逐字稿</b></li>
+            <li>可離開頁面再回來（狀態保存），不必乾等</li>
+            <li>失敗時保留已完成部分，可從中斷處續做</li>
+          </ul>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3><span class="num g">C</span>音檔去留</h3>
+          <ul>
+            <li>預設<b>存入本機</b>（沿用既有 IndexedDB 與保留期限設定）→ 可點句回放、可重跑</li>
+            <li>可選「處理完不保留」以節省空間</li>
+            <li>大檔提醒佔用空間</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. 路線圖 -->
+<section class="section" id="roadmap">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">07 · 路線圖</div>
+      <h2>三階段，第一階段就能用</h2>
+    </div>
+    <div class="phases">
+      <div class="phase">
+        <div class="phase__n">I1</div>
+        <div>
+          <h3>可用的匯入流程 <span class="badge next">核心</span></h3>
+          <p>目標：任何 ≤100MB 的音檔，丟進來就能得到逐字稿與會議紀錄。</p>
+          <ul>
+            <li><code>/import</code> 頁面：選檔／拖放、格式與大小驗證、時長偵測、token 預估</li>
+            <li>脈絡欄位（標題／與會者／術語／語言），預設帶入設定值</li>
+            <li>整檔上傳 → 辨識 → 生成紀錄；階段式進度</li>
+            <li>結果落地成標準 session（自動獲得編輯／回放／資料夾／備份）</li>
+            <li>音檔存入本機（可選不保留）</li>
+            <li>首頁與錄音頁的入口</li>
+          </ul>
+        </div>
+      </div>
+      <div class="phase">
+        <div class="phase__n">I2</div>
+        <div>
+          <h3>長檔與韌性</h3>
+          <ul>
+            <li><b>時間視窗分批辨識</b>（同一份上傳檔、多次呼叫，講者名單延續）——需先驗證時間指定的可靠度</li>
+            <li>可中斷續做、離開頁面不中斷</li>
+            <li>&gt;100MB 的引導：建議壓縮或分割，並提供明確步驟</li>
+            <li>影片檔偵測與額度警告</li>
+          </ul>
+        </div>
+      </div>
+      <div class="phase phase--later">
+        <div class="phase__n">I3</div>
+        <div>
+          <h3>便利性強化 <span class="badge">選配</span></h3>
+          <ul>
+            <li>PWA 分享目標（Android）：其他 App → 分享 → Live Minutes</li>
+            <li>批次匯入多個檔案</li>
+            <li>從既有錄音「重跑」不同語言／不同與會者名單</li>
+            <li>音檔與逐字稿的對照校閱模式</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9. 風險 -->
+<section class="section" id="risk">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">08 · 風險與待驗證</div>
+      <h2>誠實的未知清單</h2>
+    </div>
+    <div class="grid2">
+      <div>
+        <div class="callout callout--warn">
+          <h4>⚠ 真實語音的處理時間未知</h4>
+          <p>已測得的 5 秒是<b>無語音</b>音檔（輸出極短）。真實會議要生成上萬字逐字稿，時間主要花在輸出生成。<b>待驗證</b>：1 小時真實會議的實際耗時。</p>
+        </div>
+        <div class="callout callout--warn">
+          <h4>⚠ 時間視窗分批的可靠度</h4>
+          <p>要求 AI「只辨識 10:00–20:00」是<b>提示式</b>約束，不保證精準。I2 動工前必須先實測，不可靠就改用其他切分法。</p>
+        </div>
+        <div class="callout callout--warn">
+          <h4>⚠ 分講者品質不可控</h4>
+          <p>匯入的錄音品質（遠場、雜訊、單聲道）不由我們決定，會直接影響講者辨識。需在 UI 誠實說明，而非承諾完美。</p>
+        </div>
+      </div>
+      <div>
+        <div class="callout callout--bad">
+          <h4>✗ 100 MB 是硬上限</h4>
+          <p>Worker 實測 120MB 即 413。超過必須在<b>上傳前</b>擋下並給明確替代方案，不能讓使用者等失敗。</p>
+        </div>
+        <div class="callout callout--warn">
+          <h4>⚠ 額度可被一次吃掉</h4>
+          <p>單一長檔可能瞬間消耗大量 Gemini 額度。必須<b>執行前顯示預估</b>並要求確認，避免使用者無感超支。</p>
+        </div>
+        <div class="callout callout--warn">
+          <h4>⚠ 隱私層級再升一級</h4>
+          <p>匯入的錄音可能包含<b>使用者未參與、他人提供</b>的會議。需在流程中提示錄音同意責任，並沿用「不落地保存」原則。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 10. 決策點 -->
+<section class="section" id="decide">
+  <div class="wrap">
+    <div class="section__head">
+      <div class="eyebrow">09 · 需要拍板</div>
+      <h2>四個決策點</h2>
+    </div>
+    <div class="decide">
+      <div class="decide__item">
+        <h4>① 入口位置：首頁一級，還是收在錄音頁？</h4>
+        <p>一級入口更好找，但首頁會多一顆按鈕。</p>
+        <p class="rec">建議：<b>首頁一級</b>（「開始錄音」下方並列），因為對事後拿到錄音的情境，它就是主要入口。</p>
+      </div>
+      <div class="decide__item">
+        <h4>② 匯入的音檔要不要預設留在本機？</h4>
+        <p>留著才能點句回放與重跑，但佔空間（1 小時約 15–50 MB）。</p>
+        <p class="rec">建議：<b>預設保留</b>並沿用現有保留期限設定，另提供「處理完不保留」選項。</p>
+      </div>
+      <div class="decide__item">
+        <h4>③ 影片檔（Zoom/Teams .mp4）怎麼處理？</h4>
+        <p>直接送會大量消耗額度；瀏覽器內抽取音軌很困難。</p>
+        <p class="rec">建議：<b>先偵測並警告</b>（標示額度較高、仍可繼續），把自動抽音軌列為之後研究。</p>
+      </div>
+      <div class="decide__item">
+        <h4>④ 先做到哪裡？</h4>
+        <p>I1 就能覆蓋絕大多數會議；I2 是長檔韌性。</p>
+        <p class="rec">建議：<b>先做完 I1 並用你的真實錄音實測</b>，量到真實耗時後再決定 I2 的切分策略。</p>
+      </div>
+    </div>
+
+    <div class="callout callout--ok" style="margin-top:22px">
+      <h4>✅ 建議的起手式</h4>
+      <p>
+        直接做 <b>I1</b>。因為後端管線已經在線上跑，這一階段主要是前端流程與輸入驗證，
+        工作量遠小於上一輪的 P0–P4。做完後拿一段你手上的真實會議錄音跑一次，
+        用<b>實際耗時與講者辨識品質</b>決定 I2 要不要做、怎麼做。
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="wrap">
+    <div>
+      <div class="brand"><span class="brand__mark"></span> Live Minutes</div>
+      <small>匯入錄音 · 檔案優先會議紀錄計劃書 · 與 <code>docs/chinese-minutes-plan.html</code>、<code>docs/live-minutes-plan.html</code> 併行閱讀</small>
+    </div>
+    <small>所有數據皆為本專案實測；標示「待驗證」者需實測後方可作為實作依據。</small>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var btn = document.getElementById('themeBtn');
+  var sun = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4m11.4-11.4 1.4-1.4"/></svg>';
+  var moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+  function cur(){
+    var t = document.documentElement.getAttribute('data-theme');
+    if (t) return t;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function paint(){ btn.innerHTML = cur() === 'dark' ? moon : sun; }
+  btn.addEventListener('click', function(){
+    var next = cur() === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('lm-doc-theme', next); } catch(e){}
+    paint();
+  });
+  try { var s = localStorage.getItem('lm-doc-theme'); if (s) document.documentElement.setAttribute('data-theme', s); } catch(e){}
+  paint();
+})();
+</script>
+</body>
+</html>

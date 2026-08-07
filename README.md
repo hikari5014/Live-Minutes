@@ -93,3 +93,6 @@ npm run dev        # http://localhost:5173 — 純前端即可用 Web Speech 即
 
 針對**純中文會議**的音檔優先方案（錄音保存 → Gemini 產生權威版逐字稿與紀錄、多人語者處理、成本與風險）：
 **➡️ [`docs/chinese-minutes-plan.html`](docs/chinese-minutes-plan.html)**
+
+**匯入既有錄音檔**直接產出會議紀錄（不需現場即時字幕；含實測數據、限制邊界、UI 流程與路線圖）：
+**➡️ [`docs/import-audio-plan.html`](docs/import-audio-plan.html)**
