@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest'
-import { clock, extOf, planWindows, dedupe, AUDIO_TOKENS_PER_SEC, MAX_UPLOAD_BYTES } from './importaudio'
+import { describe, it, expect, beforeEach } from 'vitest'
+import {
+  clock, extOf, planWindows, dedupe, saveJob, loadJob, clearJob,
+  AUDIO_TOKENS_PER_SEC, MAX_UPLOAD_BYTES, type ImportJob,
+} from './importaudio'
 import type { Utterance } from './types'
 
 const utt = (ts: number, source: string, speaker = 0): Utterance => ({
@@ -68,6 +71,44 @@ describe('dedupe', () => {
   it('keeps the same words from different speakers', () => {
     const out = dedupe([utt(10_000, '好的', 0), utt(11_000, '好的', 1)])
     expect(out).toHaveLength(2)
+  })
+})
+
+describe('resumable jobs', () => {
+  const job = (over: Partial<ImportJob> = {}): ImportJob => ({
+    sessionId: 's1', fileName: 'a.m4a', title: '會議', uri: 'files/abc', mime: 'audio/mp4',
+    durationSec: 1800, windows: [{ start: '00:00', end: '10:00' }], nextWindow: 0,
+    roster: [], utterances: [], opts: { lang: 'zh-Hant', participants: '', glossary: '' },
+    generateMinutes: true, createdAt: Date.now(), ...over,
+  })
+
+  beforeEach(() => localStorage.clear())
+
+  it('round-trips a job', () => {
+    saveJob(job({ nextWindow: 2 }))
+    expect(loadJob()?.nextWindow).toBe(2)
+    expect(loadJob()?.uri).toBe('files/abc')
+  })
+
+  it('returns null when there is no job', () => {
+    expect(loadJob()).toBeNull()
+  })
+
+  it('discards a job older than the upload lifetime', () => {
+    saveJob(job({ createdAt: Date.now() - 30 * 60 * 60 * 1000 }))
+    expect(loadJob()).toBeNull()
+    expect(localStorage.getItem('lm-import-job')).toBeNull()
+  })
+
+  it('discards a job with no upload URI', () => {
+    saveJob(job({ uri: '' }))
+    expect(loadJob()).toBeNull()
+  })
+
+  it('clears on demand', () => {
+    saveJob(job())
+    clearJob()
+    expect(loadJob()).toBeNull()
   })
 })
 

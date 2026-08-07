@@ -125,6 +125,59 @@ function toUtterances(list: GeminiUtterance[], roster: string[]): Utterance[] {
     }))
 }
 
+// ---- Resumable jobs ----
+// The upload is the slow part, and the Files API URI outlives our page, so a
+// job that dies mid-transcription can resume from the URI without re-uploading.
+const JOB_KEY = 'lm-import-job'
+const JOB_TTL_MS = 20 * 60 * 60 * 1000 // Files API uploads expire well before this
+
+export interface ImportJob {
+  sessionId: string
+  fileName: string
+  title: string
+  uri: string
+  mime: string
+  durationSec: number
+  windows: { start: string; end: string }[]
+  nextWindow: number
+  roster: string[]
+  utterances: Utterance[]
+  opts: { lang: string; participants: string; glossary: string }
+  generateMinutes: boolean
+  createdAt: number
+}
+
+export function saveJob(job: ImportJob): void {
+  try {
+    localStorage.setItem(JOB_KEY, JSON.stringify(job))
+  } catch {
+    /* quota — the job just won't be resumable */
+  }
+}
+
+export function loadJob(): ImportJob | null {
+  try {
+    const raw = localStorage.getItem(JOB_KEY)
+    if (!raw) return null
+    const job = JSON.parse(raw) as ImportJob
+    if (!job?.uri || Date.now() - job.createdAt > JOB_TTL_MS) {
+      clearJob()
+      return null
+    }
+    return job
+  } catch {
+    return null
+  }
+}
+
+export function clearJob(): void {
+  try {
+    localStorage.removeItem(JOB_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 export interface ImportProgress {
   phase: 'upload' | 'transcribe' | 'merge'
   done: number
@@ -139,42 +192,68 @@ export interface ImportResult {
   durationSec: number
 }
 
-export async function importAudioFile(
+/** Upload the file and create a resumable job (no transcription yet). */
+export async function beginImportJob(
   file: File,
   probe: FileProbe,
+  meta: { sessionId: string; title: string; generateMinutes: boolean },
   opts: { lang: string; participants: string; glossary: string },
   onProgress?: (p: ImportProgress) => void,
-): Promise<ImportResult> {
+): Promise<ImportJob> {
   onProgress?.({ phase: 'upload', done: 0, total: 1, label: '上傳音檔' })
   const { uri, mime } = await uploadAudioFile(file, probe.mime, file.name)
+  const job: ImportJob = {
+    sessionId: meta.sessionId,
+    fileName: file.name,
+    title: meta.title,
+    uri,
+    mime,
+    durationSec: probe.durationSec,
+    windows: planWindows(probe.durationSec),
+    nextWindow: 0,
+    roster: [],
+    utterances: [],
+    opts,
+    generateMinutes: meta.generateMinutes,
+    createdAt: Date.now(),
+  }
+  saveJob(job)
+  return job
+}
 
-  const windows = planWindows(probe.durationSec)
-  const roster: string[] = []
-  let all: Utterance[] = []
+/** Run (or continue) the transcription passes of a job, saving after each so a
+ *  closed tab or a failure can pick up where it stopped. */
+export async function runImportJob(job: ImportJob, onProgress?: (p: ImportProgress) => void): Promise<ImportResult> {
+  const single = job.windows.length === 0
+  const total = single ? 1 : job.windows.length
 
-  if (windows.length === 0) {
-    onProgress?.({ phase: 'transcribe', done: 0, total: 1, label: '辨識中（整檔）' })
-    const r = await transcribeUri({ uri, mime, ...opts, knownSpeakers: [] })
-    all = toUtterances(r.utterances, roster)
-  } else {
-    for (let i = 0; i < windows.length; i++) {
-      onProgress?.({
-        phase: 'transcribe',
-        done: i,
-        total: windows.length,
-        label: `辨識第 ${i + 1}/${windows.length} 段（${windows[i].start}–${windows[i].end}）`,
-        partial: all,
-      })
-      const r = await transcribeUri({ uri, mime, ...opts, knownSpeakers: [...roster], window: windows[i] })
-      all = all.concat(toUtterances(r.utterances, roster))
-    }
+  while (job.nextWindow < total) {
+    const i = job.nextWindow
+    const w = single ? undefined : job.windows[i]
+    onProgress?.({
+      phase: 'transcribe',
+      done: i,
+      total,
+      label: single ? '辨識中（整檔）' : `辨識第 ${i + 1}/${total} 段（${w!.start}–${w!.end}）`,
+      partial: job.utterances,
+    })
+    const r = await transcribeUri({
+      uri: job.uri,
+      mime: job.mime,
+      ...job.opts,
+      knownSpeakers: [...job.roster],
+      window: w,
+    })
+    job.utterances = job.utterances.concat(toUtterances(r.utterances, job.roster))
+    job.nextWindow = i + 1
+    saveJob(job) // checkpoint
   }
 
-  onProgress?.({ phase: 'merge', done: 1, total: 1, label: '整理中' })
-  const utterances = dedupe(all)
+  onProgress?.({ phase: 'merge', done: total, total, label: '整理中', partial: job.utterances })
+  const utterances = dedupe(job.utterances)
   const speakerNames: Record<number, string> = {}
-  roster.forEach((n, i) => {
+  job.roster.forEach((n, i) => {
     if (!/^發言者\s*\d*$/.test(n)) speakerNames[i] = n
   })
-  return { utterances, speakerNames, durationSec: probe.durationSec }
+  return { utterances, speakerNames, durationSec: job.durationSec }
 }

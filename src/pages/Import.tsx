@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore } from '../state/store'
 import { TopBar } from '../components/TopBar'
@@ -6,12 +6,17 @@ import { ChevronLeft, Sparkles } from '../components/icons'
 import { Toggle } from '../components/Toggle'
 import {
   probeFile,
-  importAudioFile,
+  beginImportJob,
+  runImportJob,
+  loadJob,
+  clearJob,
   clock,
   ACCEPTED_EXT,
   MAX_UPLOAD_BYTES,
   type FileProbe,
   type ImportProgress,
+  type ImportJob,
+  type ImportResult,
 } from '../lib/importaudio'
 import { storeImportedFile } from '../lib/audiodb'
 import { saveSession, saveMinutes, getBackupKey, exportOne } from '../lib/history'
@@ -46,6 +51,13 @@ export default function Import() {
   const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [resumable, setResumable] = useState<ImportJob | null>(null)
+
+  // A job that died mid-transcription can continue from the uploaded file URI
+  // without re-uploading, as long as the upload hasn't expired.
+  useEffect(() => {
+    setResumable(loadJob())
+  }, [])
 
   async function pick(f: File | null) {
     setError(null)
@@ -65,63 +77,82 @@ export default function Import() {
     void pick(e.dataTransfer.files?.[0] ?? null)
   }
 
+  // Turn a finished job into a normal saved meeting, then open it.
+  async function finish(job: ImportJob, res: ImportResult) {
+    const meta: SessionMeta = {
+      id: job.sessionId,
+      title: job.title,
+      createdAt: job.createdAt,
+      durationSec: Math.round(res.durationSec),
+      sourceLang: settings.sourceLang,
+      targetLang: 'none',
+      speakers: new Set(res.utterances.map((u) => u.speaker)).size,
+      hasMinutes: false,
+      speakerNames: res.speakerNames,
+    }
+    saveSession(meta, res.utterances)
+
+    if (job.generateMinutes) {
+      setProgress({ phase: 'merge', done: 1, total: 1, label: '生成會議紀錄' })
+      const doc = await requestMinutesFromTranscript(transcriptText(res.utterances, false), meta.title, job.opts.lang, {
+        participants: job.opts.participants,
+        glossary: job.opts.glossary,
+      }).catch(() => null)
+      if (doc) saveMinutes(job.sessionId, doc)
+    }
+
+    const bkey = getBackupKey()
+    if (bkey) {
+      const blob = exportOne(job.sessionId)
+      if (blob) void pushBackup(bkey, [blob])
+    }
+    clearJob()
+    setProgress(null)
+    nav(`/minutes/${job.sessionId}`)
+  }
+
   async function run() {
     if (!file || !probe) return
     setError(null)
+    const id = genRoomId()
     try {
-      const id = genRoomId()
-      const createdAt = Date.now()
-
-      const res = await importAudioFile(
-        file,
-        probe,
-        { lang: settings.minutesLang, participants: settings.participants, glossary: settings.glossary },
-        setProgress,
-      )
-      if (!res.utterances.length) throw new Error('辨識結果為空——這個檔案可能沒有語音內容，或格式無法解讀')
-
-      const meta: SessionMeta = {
-        id,
-        title: title.trim() || file.name,
-        createdAt,
-        durationSec: Math.round(res.durationSec),
-        sourceLang: settings.sourceLang,
-        targetLang: 'none',
-        speakers: new Set(res.utterances.map((u) => u.speaker)).size,
-        hasMinutes: false,
-        speakerNames: res.speakerNames,
-      }
-      saveSession(meta, res.utterances)
-
+      // Store the audio BEFORE transcribing, so a resumed job still has it.
       if (keepAudio) {
         void requestPersist()
         await storeImportedFile(id, file, {
-          title: meta.title,
+          title: title.trim() || file.name,
           mime: probe.mime,
-          durationMs: Math.round(res.durationSec * 1000),
-          createdAt,
+          durationMs: Math.round(probe.durationSec * 1000),
+          createdAt: Date.now(),
         }).catch(() => undefined)
       }
-
-      if (settings.generateMinutes) {
-        setProgress({ phase: 'merge', done: 1, total: 1, label: '生成會議紀錄' })
-        const doc = await requestMinutesFromTranscript(transcriptText(res.utterances, false), meta.title, settings.minutesLang, {
-          participants: settings.participants,
-          glossary: settings.glossary,
-        }).catch(() => null)
-        if (doc) saveMinutes(id, doc)
-      }
-
-      const bkey = getBackupKey()
-      if (bkey) {
-        const blob = exportOne(id)
-        if (blob) void pushBackup(bkey, [blob])
-      }
-
-      setProgress(null)
-      nav(`/minutes/${id}`)
+      const job = await beginImportJob(
+        file,
+        probe,
+        { sessionId: id, title: title.trim() || file.name, generateMinutes: settings.generateMinutes },
+        { lang: settings.minutesLang, participants: settings.participants, glossary: settings.glossary },
+        setProgress,
+      )
+      const res = await runImportJob(job, setProgress)
+      if (!res.utterances.length) throw new Error('辨識結果為空——這個檔案可能沒有語音內容，或格式無法解讀')
+      await finish(job, res)
     } catch (e) {
       setProgress(null)
+      setResumable(loadJob())
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function resume(job: ImportJob) {
+    setError(null)
+    setResumable(null)
+    try {
+      const res = await runImportJob(job, setProgress)
+      if (!res.utterances.length) throw new Error('辨識結果為空')
+      await finish(job, res)
+    } catch (e) {
+      setProgress(null)
+      setResumable(loadJob())
       setError(e instanceof Error ? e.message : String(e))
     }
   }
@@ -166,6 +197,32 @@ export default function Import() {
           </section>
         ) : (
           <>
+            {resumable && (
+              <div className="mb-3 rounded-xl border border-line p-3" style={{ borderLeft: '4px solid var(--warn)', background: 'var(--warn-tint)' }}>
+                <div className="text-[13px] font-extrabold" style={{ color: 'var(--warn)' }}>
+                  有一份未完成的匯入
+                </div>
+                <p className="mt-1 text-[12px] text-body">
+                  「{resumable.title}」已完成 {resumable.nextWindow}/{resumable.windows.length || 1} 段。
+                  音檔已在雲端暫存，可直接續做，<b>不必重新上傳</b>。
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button onClick={() => resume(resumable)} className="flex-1 rounded-lg bg-brand py-2 text-[12.5px] font-extrabold text-white">
+                    繼續處理
+                  </button>
+                  <button
+                    onClick={() => {
+                      clearJob()
+                      setResumable(null)
+                    }}
+                    className="rounded-lg border border-line bg-surface px-3 text-[12.5px] font-bold text-muted"
+                  >
+                    捨棄
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div
               onDragOver={(e) => {
                 e.preventDefault()
@@ -219,7 +276,13 @@ export default function Import() {
 
                 {probe.tooBig && (
                   <div className="mt-2 rounded-xl border border-line px-3 py-2 text-[12.5px]" style={{ borderLeft: '4px solid var(--live)', background: 'var(--live-tint)', color: 'var(--live)' }}>
-                    檔案超過 {formatBytes(MAX_UPLOAD_BYTES)} 上限，無法上傳。請先壓縮成 m4a／mp3，或分割成多段再匯入。
+                    <b>檔案超過 {formatBytes(MAX_UPLOAD_BYTES)} 上限，無法上傳。</b>
+                    <div className="mt-1.5 text-body">可以這樣處理：</div>
+                    <ul className="ml-4 mt-1 list-disc text-body">
+                      <li>若是影片，先轉成純音訊（m4a／mp3），通常可縮到十分之一以下</li>
+                      <li>若已是音訊，用較低位元率重新編碼（語音 64kbps 就很夠）</li>
+                      <li>或把錄音分割成數段，逐段匯入——每段都會各自成為一場會議</li>
+                    </ul>
                   </div>
                 )}
                 {probe.unsupported && !probe.tooBig && (
