@@ -10,6 +10,7 @@ import {
   runImportJob,
   loadJob,
   clearJob,
+  takeSharedFile,
   clock,
   ACCEPTED_EXT,
   MAX_UPLOAD_BYTES,
@@ -46,6 +47,8 @@ export default function Import() {
   const [file, setFile] = useState<File | null>(null)
   const [probe, setProbe] = useState<FileProbe | null>(null)
   const [probing, setProbing] = useState(false)
+  const [queue, setQueue] = useState<File[]>([]) // extra files for batch import
+  const [batchAt, setBatchAt] = useState<number | null>(null)
   const [title, setTitle] = useState('')
   const [keepAudio, setKeepAudio] = useState(true)
   const [progress, setProgress] = useState<ImportProgress | null>(null)
@@ -57,28 +60,39 @@ export default function Import() {
   // without re-uploading, as long as the upload hasn't expired.
   useEffect(() => {
     setResumable(loadJob())
+    // Arriving from another app's share sheet: the service worker stashed the
+    // file for us, so load it straight into the picker.
+    if (new URLSearchParams(window.location.search).get('shared')) {
+      void takeSharedFile().then((f) => {
+        if (f) void pick([f])
+      })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function pick(f: File | null) {
+  async function pick(list: FileList | File[] | null) {
     setError(null)
     setProbe(null)
-    setFile(f)
-    if (!f) return
+    const files = list ? Array.from(list) : []
+    setFile(files[0] ?? null)
+    setQueue(files.slice(1))
+    if (!files.length) return
     setProbing(true)
-    const p = await probeFile(f)
+    const p = await probeFile(files[0])
     setProbe(p)
     setProbing(false)
-    if (!title) setTitle(f.name.replace(/\.[^.]+$/, ''))
+    setTitle(files[0].name.replace(/\.[^.]+$/, ''))
   }
 
   function onDrop(e: DragEvent) {
     e.preventDefault()
     setDragging(false)
-    void pick(e.dataTransfer.files?.[0] ?? null)
+    void pick(e.dataTransfer.files ?? null)
   }
 
-  // Turn a finished job into a normal saved meeting, then open it.
-  async function finish(job: ImportJob, res: ImportResult) {
+  // Turn a finished job into a normal saved meeting. Returns its id; the caller
+  // decides whether to navigate (single import) or continue the queue (batch).
+  async function finish(job: ImportJob, res: ImportResult, navigate = true) {
     const meta: SessionMeta = {
       id: job.sessionId,
       title: job.title,
@@ -107,36 +121,63 @@ export default function Import() {
       if (blob) void pushBackup(bkey, [blob])
     }
     clearJob()
-    setProgress(null)
-    nav(`/minutes/${job.sessionId}`)
+    if (navigate) {
+      setProgress(null)
+      nav(`/minutes/${job.sessionId}`)
+    }
+  }
+
+  /** Process one file end to end. Used by both single and batch paths. */
+  async function processOne(f: File, p: FileProbe, name: string, navigate: boolean) {
+    const id = genRoomId()
+    if (keepAudio) {
+      void requestPersist()
+      await storeImportedFile(id, f, {
+        title: name,
+        mime: p.mime,
+        durationMs: Math.round(p.durationSec * 1000),
+        createdAt: Date.now(),
+      }).catch(() => undefined)
+    }
+    const job = await beginImportJob(
+      f,
+      p,
+      { sessionId: id, title: name, generateMinutes: settings.generateMinutes },
+      { lang: settings.minutesLang, participants: settings.participants, glossary: settings.glossary },
+      setProgress,
+    )
+    const res = await runImportJob(job, setProgress)
+    if (!res.utterances.length) throw new Error('辨識結果為空——這個檔案可能沒有語音內容，或格式無法解讀')
+    await finish(job, res, navigate)
   }
 
   async function run() {
     if (!file || !probe) return
     setError(null)
-    const id = genRoomId()
+    const batch = [file, ...queue]
     try {
-      // Store the audio BEFORE transcribing, so a resumed job still has it.
-      if (keepAudio) {
-        void requestPersist()
-        await storeImportedFile(id, file, {
-          title: title.trim() || file.name,
-          mime: probe.mime,
-          durationMs: Math.round(probe.durationSec * 1000),
-          createdAt: Date.now(),
-        }).catch(() => undefined)
+      if (batch.length === 1) {
+        await processOne(file, probe, title.trim() || file.name, true)
+        return
       }
-      const job = await beginImportJob(
-        file,
-        probe,
-        { sessionId: id, title: title.trim() || file.name, generateMinutes: settings.generateMinutes },
-        { lang: settings.minutesLang, participants: settings.participants, glossary: settings.glossary },
-        setProgress,
-      )
-      const res = await runImportJob(job, setProgress)
-      if (!res.utterances.length) throw new Error('辨識結果為空——這個檔案可能沒有語音內容，或格式無法解讀')
-      await finish(job, res)
+      // Batch: each file becomes its own meeting; skip ones we can't handle.
+      const skipped: string[] = []
+      for (let i = 0; i < batch.length; i++) {
+        const f = batch[i]
+        setBatchAt(i)
+        const p = i === 0 ? probe : await probeFile(f)
+        if (p.tooBig || p.unsupported) {
+          skipped.push(f.name)
+          continue
+        }
+        await processOne(f, p, f.name.replace(/\.[^.]+$/, ''), false)
+      }
+      setBatchAt(null)
+      setProgress(null)
+      if (skipped.length) setError(`已完成，但略過 ${skipped.length} 個無法處理的檔案：${skipped.join('、')}`)
+      else nav('/')
     } catch (e) {
+      setBatchAt(null)
       setProgress(null)
       setResumable(loadJob())
       setError(e instanceof Error ? e.message : String(e))
@@ -179,6 +220,11 @@ export default function Import() {
               <Sparkles className="h-5 w-5 text-brand-ink" />
               <span className="text-[14px] font-extrabold text-ink">處理中</span>
             </div>
+            {batchAt !== null && (
+              <div className="mt-2 text-[12px] font-bold text-zh-ink">
+                批次處理：第 {batchAt + 1}／{queue.length + 1} 個檔案
+              </div>
+            )}
             <div className="mt-3 text-[13px] font-bold text-brand-ink">{progress.label}…</div>
             <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-surface-2">
               <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: 'var(--brand)' }} />
@@ -240,16 +286,19 @@ export default function Import() {
               <span className="material-symbols-rounded text-brand-ink" style={{ fontSize: 34 }}>
                 graphic_eq
               </span>
-              <div className="mt-1.5 text-[14px] font-extrabold text-ink">{file ? file.name : '選擇或拖放音檔'}</div>
+              <div className="mt-1.5 text-[14px] font-extrabold text-ink">
+                {file ? (queue.length ? `${file.name} 等 ${queue.length + 1} 個檔案` : file.name) : '選擇或拖放音檔'}
+              </div>
               <div className="mt-1 text-[11.5px] text-faint">
-                {ACCEPTED_EXT.slice(0, 6).join(' · ')}　|　上限 {formatBytes(MAX_UPLOAD_BYTES)}
+                {ACCEPTED_EXT.slice(0, 6).join(' · ')}　|　單檔上限 {formatBytes(MAX_UPLOAD_BYTES)}　|　可多選
               </div>
               <input
                 ref={inputRef}
                 type="file"
                 accept="audio/*,video/*"
+                multiple
                 className="hidden"
-                onChange={(e: ChangeEvent<HTMLInputElement>) => void pick(e.target.files?.[0] ?? null)}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => void pick(e.target.files)}
               />
             </div>
 

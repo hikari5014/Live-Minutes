@@ -25,6 +25,17 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         start_url: '/',
+        // Receive audio shared from other apps (Android/Chromium; iOS Safari
+        // does not implement share_target and simply ignores this).
+        share_target: {
+          action: '/share-target',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            files: [{ name: 'audio', accept: ['audio/*', 'video/*'] }],
+          },
+        },
         icons: [
           { src: '/icons/icon.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
           { src: '/icons/icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
@@ -33,8 +44,9 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/share-target/],
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
+        importScripts: ['share-target-sw.js'],
       },
       devOptions: { enabled: false },
     }),

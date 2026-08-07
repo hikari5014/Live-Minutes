@@ -125,6 +125,22 @@ function toUtterances(list: GeminiUtterance[], roster: string[]): Utterance[] {
     }))
 }
 
+/** Collect a file handed over by the OS share sheet (see public/share-target-sw.js). */
+export async function takeSharedFile(): Promise<File | null> {
+  try {
+    const cache = await caches.open('lm-share')
+    const res = await cache.match('/__shared-audio')
+    if (!res) return null
+    await cache.delete('/__shared-audio') // one-shot
+    const blob = await res.blob()
+    if (!blob.size) return null
+    const name = decodeURIComponent(res.headers.get('x-lm-filename') || 'shared-audio')
+    return new File([blob], name, { type: blob.type || 'audio/mpeg' })
+  } catch {
+    return null
+  }
+}
+
 // ---- Resumable jobs ----
 // The upload is the slow part, and the Files API URI outlives our page, so a
 // job that dies mid-transcription can resume from the URI without re-uploading.

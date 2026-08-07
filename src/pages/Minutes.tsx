@@ -428,16 +428,32 @@ export default function Minutes() {
                 <p className="mt-1.5 text-[11px] text-muted">長會議需要一點時間，請保持此頁開啟。</p>
               </div>
             ) : (
-              <div className="mt-3 flex gap-2">
-                <button onClick={buildFromAudio} className="flex-1 rounded-xl bg-brand py-2.5 text-[13px] font-extrabold text-white">
-                  {hasOrig ? '重新產生' : '產生權威版'}
-                </button>
-                {hasOrig && (
-                  <button onClick={revertToLive} className="rounded-xl border border-line bg-surface px-3 text-[12.5px] font-bold text-muted">
-                    還原即時版
+              <>
+                {/* Re-run knobs: language and participants change the result the
+                    most, so they are adjustable right here rather than only in settings. */}
+                <div className="mt-3 grid gap-2">
+                  <input
+                    value={settings.participants}
+                    onChange={(e) => setSettings({ participants: e.target.value })}
+                    placeholder="與會者（逗號分隔）— 讓 AI 標出真實姓名"
+                    className="w-full rounded-lg border border-line bg-paper px-2.5 py-2 text-[12.5px] text-ink placeholder:text-faint"
+                  />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[12px] text-muted">輸出語言</span>
+                    <LangSelect value={settings.minutesLang} onChange={(v) => setSettings({ minutesLang: v })} />
+                  </div>
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <button onClick={buildFromAudio} className="flex-1 rounded-xl bg-brand py-2.5 text-[13px] font-extrabold text-white">
+                    {hasOrig ? '重新產生' : '產生權威版'}
                   </button>
-                )}
-              </div>
+                  {hasOrig && (
+                    <button onClick={revertToLive} className="rounded-xl border border-line bg-surface px-3 text-[12.5px] font-bold text-muted">
+                      還原即時版
+                    </button>
+                  )}
+                </div>
+              </>
             )}
             {buildErr && <p className="mt-2 text-[12px] text-live">產生失敗：{buildErr}</p>}
             {hasOrig && !building && <p className="mt-2 text-[11px] text-faint">目前顯示的是權威版；現場即時版已保留，可隨時還原。</p>}
