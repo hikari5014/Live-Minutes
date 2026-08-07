@@ -119,6 +119,32 @@ export async function transcribeAudio(
   return data
 }
 
+/** Push a file to the Gemini Files API once; the URI can then be transcribed
+ *  repeatedly (e.g. window by window) without re-uploading. */
+export async function uploadAudioFile(blob: Blob, mime: string, name: string): Promise<{ uri: string; mime: string }> {
+  const fd = new FormData()
+  fd.append('audio', blob, name)
+  fd.append('mime', mime)
+  fd.append('name', name)
+  const res = await fetch('/api/audio/upload', { method: 'POST', body: fd })
+  const data = (await res.json().catch(() => ({}))) as { error?: string; uri?: string; mime?: string }
+  if (!res.ok || !data.uri) throw new Error(data.error || `upload ${res.status}`)
+  return { uri: data.uri, mime: data.mime || mime }
+}
+
+export async function transcribeUri(opts: {
+  uri: string
+  mime: string
+  lang?: string
+  participants?: string
+  glossary?: string
+  knownSpeakers?: string[]
+  window?: { start: string; end: string }
+}): Promise<{ utterances: GeminiUtterance[]; speakers: string[] }> {
+  const data = await postJSON<{ utterances?: GeminiUtterance[]; speakers?: string[] }>('/api/audio/transcribe', opts)
+  return { utterances: data.utterances ?? [], speakers: data.speakers ?? [] }
+}
+
 export interface BackupItem {
   id: string
   payload: string

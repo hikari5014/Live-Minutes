@@ -159,6 +159,34 @@ export async function pruneOlderThan(days: number): Promise<number> {
   return old.length
 }
 
+/** Store an imported file as a single-segment recording, so playback,
+ *  click-a-line seeking, retention and export all work exactly as they do for
+ *  recordings this app made itself. */
+export async function storeImportedFile(
+  sessionId: string,
+  file: Blob,
+  meta: { title: string; mime: string; durationMs: number; createdAt: number },
+): Promise<void> {
+  await putChunk(sessionId, 0, 0, file)
+  await finishSegment({
+    sessionId,
+    seg: 0,
+    mime: meta.mime,
+    startMs: 0,
+    durationMs: meta.durationMs,
+    bytes: file.size,
+  })
+  await upsertRecording({
+    sessionId,
+    title: meta.title,
+    createdAt: meta.createdAt,
+    mime: meta.mime,
+    segments: 1,
+    bytes: file.size,
+    durationMs: meta.durationMs,
+  })
+}
+
 /** Map a meeting-relative timestamp to the segment containing it. */
 export function locate(segments: SegmentMeta[], ms: number): { seg: SegmentMeta; offsetSec: number } | null {
   for (const s of segments) {

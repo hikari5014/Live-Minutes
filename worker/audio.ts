@@ -108,7 +108,15 @@ export async function transcribeSegment(
   env: Env,
   uri: string,
   mime: string,
-  opts: { lang: string; participants: string[]; knownSpeakers: string[]; glossary: string[] },
+  opts: {
+    lang: string
+    participants: string[]
+    knownSpeakers: string[]
+    glossary: string[]
+    /** Optional MM:SS window inside a longer upload. Boundaries are honoured
+     *  approximately, so callers should overlap windows and de-duplicate. */
+    window?: { start: string; end: string }
+  },
 ): Promise<TranscriptOut> {
   const langName = LANG_NAME[opts.lang] ?? '繁體中文'
   const lines = [
@@ -138,6 +146,12 @@ export async function transcribeSegment(
   }
   if (opts.glossary.length) {
     lines.push(`- 專有名詞對照（請優先採用這些寫法）：${opts.glossary.join('、')}。`)
+  }
+  if (opts.window) {
+    lines.push(
+      `**只處理這段音訊的 ${opts.window.start} 到 ${opts.window.end} 這個時間範圍**，此範圍以外的內容完全忽略、不要輸出。`,
+      `start 欄位請填該句在**整段音訊**中的絕對時間（從 00:00 起算），不是相對於 ${opts.window.start}。`,
+    )
   }
   lines.push('僅根據音訊內容輸出，不要杜撰沒說過的話。')
 

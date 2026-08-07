@@ -128,7 +128,16 @@ export default function Recordings() {
               })}
             </div>
           </div>
-          <button onClick={() => nav('/settings/diagnostics')} className="mt-3 w-full text-center text-[12px] font-semibold text-brand-ink">
+          <button
+            onClick={() => nav('/import')}
+            className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl border border-line py-2 text-[12.5px] font-bold text-brand-ink"
+          >
+            <span className="material-symbols-rounded" style={{ fontSize: 17 }}>
+              upload_file
+            </span>
+            匯入外部音檔
+          </button>
+          <button onClick={() => nav('/settings/diagnostics')} className="mt-2 w-full text-center text-[12px] font-semibold text-brand-ink">
             查看裝置診斷 →
           </button>
         </section>

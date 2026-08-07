@@ -123,6 +123,56 @@ async function handleApi(request: Request, env: Env, url: URL): Promise<Response
     return json(data)
   }
 
+  // Upload once, transcribe many: an imported file is a single container that
+  // cannot be sliced client-side, so we push it to the Files API once and then
+  // run one or more time-window transcription passes against the same URI.
+  if (request.method === 'POST' && p === '/api/audio/upload') {
+    if (!env.GEMINI_API_KEY) return json({ error: 'gemini not configured' }, 501)
+    try {
+      const form = await request.formData()
+      const entry = form.get('audio') as unknown as { arrayBuffer?: () => Promise<ArrayBuffer>; type?: string } | null
+      if (!entry || typeof entry.arrayBuffer !== 'function') return json({ error: 'audio required' }, 400)
+      const mime = String(form.get('mime') || entry.type || 'audio/webm')
+      const bytes = await entry.arrayBuffer()
+      if (bytes.byteLength === 0) return json({ error: 'empty audio' }, 400)
+      const uri = await uploadToGemini(env, bytes, mime, String(form.get('name') || 'import'))
+      return json({ uri, mime, bytes: bytes.byteLength })
+    } catch (e) {
+      return json({ error: String(e) }, 502)
+    }
+  }
+
+  if (request.method === 'POST' && p === '/api/audio/transcribe') {
+    if (!env.GEMINI_API_KEY) return json({ error: 'gemini not configured' }, 501)
+    const body = (await request.json().catch(() => ({}))) as {
+      uri?: string
+      mime?: string
+      lang?: string
+      participants?: string
+      glossary?: string
+      knownSpeakers?: string[]
+      window?: { start: string; end: string }
+    }
+    if (!body.uri) return json({ error: 'uri required' }, 400)
+    const csv = (s?: string) =>
+      String(s || '')
+        .split(/[,，、]/)
+        .map((x) => x.trim())
+        .filter(Boolean)
+    try {
+      const out = await transcribeSegment(env, body.uri, body.mime || 'audio/mpeg', {
+        lang: body.lang || 'zh-Hant',
+        participants: csv(body.participants),
+        glossary: csv(body.glossary),
+        knownSpeakers: Array.isArray(body.knownSpeakers) ? body.knownSpeakers : [],
+        window: body.window,
+      })
+      return json(out)
+    } catch (e) {
+      return json({ error: String(e) }, 502)
+    }
+  }
+
   // Audio → Gemini. multipart/form-data: audio (file) + options.
   // mode=text  → free-form listen (diagnostics); mode=transcript → structured.
   if (request.method === 'POST' && p === '/api/audio') {

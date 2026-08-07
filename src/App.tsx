@@ -8,6 +8,7 @@ import Archived from './pages/Archived'
 import Folders from './pages/Folders'
 import Recordings from './pages/Recordings'
 import Diagnostics from './pages/Diagnostics'
+import Import from './pages/Import'
 import About from './pages/About'
 import NotFound from './pages/NotFound'
 
@@ -23,6 +24,7 @@ export default function App() {
       <Route path="/settings/folders" element={<Folders />} />
       <Route path="/settings/recordings" element={<Recordings />} />
       <Route path="/settings/diagnostics" element={<Diagnostics />} />
+      <Route path="/import" element={<Import />} />
       <Route path="/about" element={<About />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
