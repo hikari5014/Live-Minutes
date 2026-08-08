@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import Home from './pages/Home'
+import Shell from './pages/Shell'
 import Live from './pages/Live'
 import RoomView from './pages/RoomView'
 import Minutes from './pages/Minutes'
@@ -17,7 +17,7 @@ import NotFound from './pages/NotFound'
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Home />} />
+      <Route path="/" element={<Shell />} />
       <Route path="/live" element={<Live />} />
       <Route path="/m/:id" element={<RoomView />} />
       <Route path="/minutes/:id" element={<Minutes />} />

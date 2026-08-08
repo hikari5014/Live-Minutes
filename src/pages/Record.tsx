@@ -4,9 +4,9 @@ import { useStore } from '../state/store'
 import { TopBar } from '../components/TopBar'
 import { RecordWave } from '../components/RecordWave'
 import { Toggle } from '../components/Toggle'
-import { ChevronLeft, Mic, Pause, Play, Sparkles, Stop } from '../components/icons'
+import { Mic, Pause, Play, Sparkles, Stop } from '../components/icons'
 import { MeetingRecorder, supportedMime, type RecorderStatus } from '../lib/recorder'
-import { startKeepalive, type Keepalive } from '../lib/keepalive'
+import { createAudioContext, attachKeepalive, backgroundRecordingBlocked, type Keepalive } from '../lib/keepalive'
 import { enableWakeLock, disableWakeLock } from '../lib/wakelock'
 import { buildAuthoritativeTranscript, type BuildProgress } from '../lib/authoritative'
 import { getRecording, deleteRecording, audioSupported } from '../lib/audiodb'
@@ -44,7 +44,7 @@ function defaultTitle(): string {
 
 type Phase = 'idle' | 'rec' | 'processing' | 'error'
 
-export default function Record() {
+export function RecordPane({ onRecordingChange }: { onRecordingChange?: (b: boolean) => void } = {}) {
   const nav = useNavigate()
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
@@ -58,6 +58,12 @@ export default function Record() {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null)
+  const [audioBlocked, setAudioBlocked] = useState(false)
+  const iosLike = backgroundRecordingBlocked()
+
+  useEffect(() => {
+    onRecordingChange?.(phase === 'rec')
+  }, [phase, onRecordingChange])
 
   const recRef = useRef<MeetingRecorder | null>(null)
   const keepRef = useRef<Keepalive | null>(null)
@@ -86,6 +92,11 @@ export default function Record() {
     const t = window.setInterval(() => {
       const until = paused ? pauseStartRef.current : Date.now()
       setElapsedMs(Math.max(0, until - t0Ref.current - pausedMsRef.current))
+      const keep = keepRef.current
+      if (keep) {
+        keep.kick()
+        setAudioBlocked(keep.suspended())
+      }
     }, 250)
     return () => clearInterval(t)
   }, [phase, paused])
@@ -115,21 +126,31 @@ export default function Record() {
       setError('此瀏覽器不支援錄音（MediaRecorder／IndexedDB 不可用）')
       return
     }
+    // Build the AudioContext synchronously, while still inside the click
+    // gesture — after an await iOS treats it as user-less and starts it
+    // suspended, which is what leaves the waveform flat.
+    const ctx = createAudioContext()
+
     let stream: MediaStream
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: settings.echoCancel, noiseSuppression: settings.echoCancel, channelCount: 1 },
       })
     } catch {
+      void ctx?.close().catch(() => undefined)
       setError('無法取得麥克風權限，請於瀏覽器設定允許後重試。')
       return
     }
     streamRef.current = stream
-    try {
-      keepRef.current = await startKeepalive(stream)
-      setAnalyser(keepRef.current.analyser)
-    } catch {
-      /* waveform/背景保活失敗不擋錄音 */
+    if (ctx) {
+      try {
+        const keep = await attachKeepalive(ctx, stream)
+        keepRef.current = keep
+        setAnalyser(keep.analyser)
+        setAudioBlocked(keep.suspended())
+      } catch {
+        /* 波形失敗不擋錄音 */
+      }
     }
 
     const id = genRoomId()
@@ -251,16 +272,10 @@ export default function Record() {
   const pct = prog ? Math.round((prog.done / Math.max(1, prog.total)) * 100) : 0
 
   return (
-    <div className="flex min-h-dvh flex-col bg-paper">
-      <TopBar subtitle="錄音" />
-      <main className="safe-b mx-auto flex w-full max-w-md flex-1 flex-col px-4 pb-10">
+    <div className="mx-auto flex min-h-full w-full max-w-md flex-col px-4 pb-10">
         {phase === 'idle' && (
           <>
-            <button onClick={() => nav('/')} className="mt-3 inline-flex items-center gap-1 self-start text-sm font-semibold text-muted">
-              <ChevronLeft className="h-4 w-4" />
-              首頁
-            </button>
-            <h1 className="mt-2 text-xl font-extrabold text-ink">純錄音模式</h1>
+            <h1 className="mt-3 text-xl font-extrabold text-ink">純錄音模式</h1>
             <p className="mt-1 text-[12.5px] text-muted">
               不出即時字幕，只專心錄音；按結束後才交給 AI 產出逐字稿與會議紀錄。
             </p>
@@ -331,12 +346,28 @@ export default function Record() {
               </span>
             </button>
 
-            <p className="mt-6 text-center text-[11px] leading-relaxed text-faint">
-              支援背景錄音：切到其他 App 或關閉螢幕仍會繼續。
-              <br />
-              Android 穩定；iPhone 以無聲音訊保持喚醒，若仍被系統中斷，
-              內容<b>每 5 秒自動存檔</b>、回來即可續處理。
-            </p>
+            {iosLike ? (
+              <div className="mt-6 rounded-xl border border-line p-3" style={{ borderLeft: '4px solid var(--warn)', background: 'var(--warn-tint)' }}>
+                <div className="text-[12.5px] font-extrabold" style={{ color: 'var(--warn)' }}>
+                  iPhone／iPad：請保持本頁在前景
+                </div>
+                <p className="mt-1 text-[11.5px] leading-relaxed text-body">
+                  iOS <b>不允許</b>網頁在鎖屏或切到其他 App 後繼續錄音（系統層限制，無法以網頁技術繞過）。
+                  錄音期間我們會<b>阻止螢幕自動熄滅</b>，請勿按電源鍵或切換 App。
+                  <br />
+                  需要全程背景錄音，請改用 iOS <b>「語音備忘錄」</b>錄好，再用「匯入錄音檔」交給 AI —— 效果完全相同。
+                </p>
+                <button onClick={() => nav('/import')} className="mt-2 w-full rounded-lg bg-surface py-2 text-[12px] font-bold text-brand-ink">
+                  改用匯入錄音檔 →
+                </button>
+              </div>
+            ) : (
+              <p className="mt-6 text-center text-[11px] leading-relaxed text-faint">
+                支援背景錄音：切到其他 App 或關閉螢幕通常仍會繼續。
+                <br />
+                內容<b>每 5 秒自動存檔</b>，即使被系統中斷也只損失數秒、回來即可續處理。
+              </p>
+            )}
             {error && <p className="mt-3 text-center text-[12.5px] text-live">{error}</p>}
           </>
         )}
@@ -367,8 +398,15 @@ export default function Record() {
               <RecordWave analyser={analyser} paused={paused} />
             </div>
 
+            {audioBlocked && (
+              <button onClick={() => keepRef.current?.kick()} className="mt-2 w-full rounded-lg px-3 py-2 text-[12px] font-bold" style={{ background: 'var(--warn-tint)', color: 'var(--warn)' }}>
+                音訊分析被系統暫停（錄音仍進行中）— 點此恢復波形
+              </button>
+            )}
+
             <p className="mt-3 text-center text-[11.5px] text-faint">
-              已存檔 {formatBytes(stat?.bytes ?? 0)} · 每 5 秒自動寫入本機，關閉螢幕仍持續錄音
+              已存檔 {formatBytes(stat?.bytes ?? 0)} · 每 5 秒自動寫入本機
+              {iosLike ? ' · 請保持本頁在前景' : ''}
             </p>
 
             <div className="mt-auto flex gap-2.5 pb-4 pt-8">
@@ -420,13 +458,21 @@ export default function Record() {
               >
                 重試處理
               </button>
-              <button onClick={() => nav('/')} className="rounded-xl border border-line bg-surface px-4 text-[13px] font-bold text-muted">
+              <button onClick={() => setPhase('idle')} className="rounded-xl border border-line bg-surface px-4 text-[13px] font-bold text-muted">
                 稍後再處理
               </button>
             </div>
           </section>
         )}
-      </main>
+    </div>
+  )
+}
+
+export default function Record() {
+  return (
+    <div className="flex min-h-dvh flex-col bg-paper">
+      <TopBar subtitle="錄音" />
+      <RecordPane />
     </div>
   )
 }

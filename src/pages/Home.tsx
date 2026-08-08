@@ -16,7 +16,7 @@ import { SwipeRow } from '../components/SwipeRow'
 import { Mic, Calendar, ArrowRight } from '../components/icons'
 import { shortDate, durationLabel } from '../lib/format'
 
-export default function Home() {
+export function LivePane() {
   const settings = useStore((s) => s.settings)
   const setSettings = useStore((s) => s.setSettings)
   const nav = useNavigate()
@@ -118,8 +118,7 @@ export default function Home() {
   const shown = useMemo(() => (query.trim() ? searchSessions(query) : sessions), [query, sessions])
 
   return (
-    <div className="flex min-h-dvh flex-col bg-paper">
-      <TopBar />
+    <>
       <main className="safe-b mx-auto flex w-full max-w-md flex-1 flex-col gap-4 px-4 pb-10">
         {recovered && (
           <div
@@ -304,30 +303,17 @@ export default function Home() {
         </button>
         <p className="text-center text-xs text-faint">點按開始 · 請保持螢幕開啟以免中斷</p>
 
-        {/* Two more first-class entries: record-only (no live captions, AI runs
-            after stop) and importing a recording that already exists. */}
-        <div className="mt-1 flex gap-2">
-          <button
-            type="button"
-            onClick={() => nav('/record')}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-[13.5px] font-bold text-ink"
-          >
-            <span className="material-symbols-rounded text-live" style={{ fontSize: 19 }}>
-              mic
-            </span>
-            純錄音模式
-          </button>
-          <button
-            type="button"
-            onClick={() => nav('/import')}
-            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-[13.5px] font-bold text-ink"
-          >
-            <span className="material-symbols-rounded text-brand-ink" style={{ fontSize: 19 }}>
-              upload_file
-            </span>
-            匯入錄音檔
-          </button>
-        </div>
+        {/* Recordings that already exist (Zoom/Teams export, voice memo). */}
+        <button
+          type="button"
+          onClick={() => nav('/import')}
+          className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-[13.5px] font-bold text-ink"
+        >
+          <span className="material-symbols-rounded text-brand-ink" style={{ fontSize: 19 }}>
+            upload_file
+          </span>
+          匯入既有錄音檔
+        </button>
 
         {sessions.length > 0 && (
           <section className="mt-2">
@@ -444,6 +430,15 @@ export default function Home() {
           </button>
         </div>
       )}
+    </>
+  )
+}
+
+export default function Home() {
+  return (
+    <div className="flex min-h-dvh flex-col bg-paper">
+      <TopBar />
+      <LivePane />
     </div>
   )
 }
