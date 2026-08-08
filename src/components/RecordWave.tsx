@@ -41,9 +41,9 @@ export function RecordWave({ analyser, paused }: { analyser: AnalyserNode | null
 
       g.clearRect(0, 0, w, h)
       const css = getComputedStyle(document.documentElement)
-      const brand = css.getPropertyValue('--brand').trim() || '#0C8F94'
-      const live = css.getPropertyValue('--live').trim() || '#D9363E'
-      const faint = css.getPropertyValue('--border-strong').trim() || '#CBD3D9'
+      const brand = css.getPropertyValue('--brand').trim() || '#07B6CC'
+      const live = css.getPropertyValue('--brand-ink').trim() || '#048094'
+      const faint = css.getPropertyValue('--border-strong').trim() || '#D4D4DA'
       const bars = barsRef.current
       const bw = w / BARS
 
