@@ -304,18 +304,30 @@ export default function Home() {
         </button>
         <p className="text-center text-xs text-faint">點按開始 · 請保持螢幕開啟以免中斷</p>
 
-        {/* Second first-class entry: many meetings are only available as a
-            recording afterwards (Zoom/Teams export, voice memo, forwarded file). */}
-        <button
-          type="button"
-          onClick={() => nav('/import')}
-          className="mx-auto mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-[13.5px] font-bold text-ink"
-        >
-          <span className="material-symbols-rounded text-brand-ink" style={{ fontSize: 19 }}>
-            upload_file
-          </span>
-          匯入既有錄音檔
-        </button>
+        {/* Two more first-class entries: record-only (no live captions, AI runs
+            after stop) and importing a recording that already exists. */}
+        <div className="mt-1 flex gap-2">
+          <button
+            type="button"
+            onClick={() => nav('/record')}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-[13.5px] font-bold text-ink"
+          >
+            <span className="material-symbols-rounded text-live" style={{ fontSize: 19 }}>
+              mic
+            </span>
+            純錄音模式
+          </button>
+          <button
+            type="button"
+            onClick={() => nav('/import')}
+            className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-[13.5px] font-bold text-ink"
+          >
+            <span className="material-symbols-rounded text-brand-ink" style={{ fontSize: 19 }}>
+              upload_file
+            </span>
+            匯入錄音檔
+          </button>
+        </div>
 
         {sessions.length > 0 && (
           <section className="mt-2">

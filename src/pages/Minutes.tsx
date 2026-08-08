@@ -16,7 +16,8 @@ import {
 } from '../lib/history'
 import { buildAuthoritativeTranscript, hasRecording, type BuildProgress } from '../lib/authoritative'
 import { listSegments, getSegmentBlob, locate, type SegmentMeta } from '../lib/audiodb'
-import { requestMinutesFromTranscript, fetchSession, pushBackup } from '../lib/api'
+import { fetchSession, pushBackup } from '../lib/api'
+import { llmMinutes } from '../lib/llm'
 import { useStore } from '../state/store'
 import { transcriptText, minutesMarkdown, downloadText } from '../lib/minutes'
 import { TopBar } from '../components/TopBar'
@@ -254,7 +255,7 @@ export default function Minutes() {
     setError(null)
     try {
       const text = transcriptText(utts, withTr)
-      const doc = await requestMinutesFromTranscript(text, title || meta.title, settings.minutesLang, {
+      const doc = await llmMinutes(text, title || meta.title, settings.minutesLang, {
         participants: settings.participants,
         glossary: settings.glossary,
       })

@@ -2,7 +2,8 @@
 // sent to Gemini in order, carrying the speaker roster forward so a person keeps
 // the same label across segments (the failure mode of per-chunk transcription).
 import { listSegments, getSegmentBlob, getRecording } from './audiodb'
-import { transcribeAudio, type GeminiUtterance } from './api'
+import { llmTranscribeBlob } from './llm'
+import type { GeminiUtterance } from './api'
 import type { Utterance } from './types'
 
 export interface BuildProgress {
@@ -78,8 +79,7 @@ export async function buildAuthoritativeTranscript(
     onProgress?.({ done: i, total: segments.length, label: `辨識第 ${i + 1}/${segments.length} 段` })
     const blob = await getSegmentBlob(sessionId, seg.seg, seg.mime)
     if (!blob || blob.size === 0) continue
-    const res = await transcribeAudio(blob, seg.mime, {
-      mode: 'transcript',
+    const res = await llmTranscribeBlob(blob, seg.mime, {
       lang: opts.lang,
       participants: opts.participants,
       glossary: opts.glossary,

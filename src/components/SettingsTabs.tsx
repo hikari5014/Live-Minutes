@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 
 const TABS = [
   { to: '/settings', label: '一般', icon: 'edit' },
+  { to: '/settings/ai', label: 'AI', icon: 'smart_toy' },
   { to: '/settings/recordings', label: '錄音', icon: 'mic' },
   { to: '/settings/archived', label: '封存', icon: 'archive' },
   { to: '/settings/folders', label: '資料夾', icon: 'folder' },
@@ -21,10 +22,10 @@ export function SettingsTabs() {
             key={t.to}
             type="button"
             onClick={() => nav(t.to)}
-            className="flex flex-1 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-[12px] font-bold transition-colors"
+            className="flex flex-1 items-center justify-center gap-0.5 rounded-lg px-1 py-2 text-[11.5px] font-bold transition-colors"
             style={active ? { background: 'var(--brand)', color: '#fff' } : { color: 'var(--muted)' }}
           >
-            <span className="material-symbols-rounded" style={{ fontSize: 17 }}>
+            <span className="material-symbols-rounded" style={{ fontSize: 15 }}>
               {t.icon}
             </span>
             {t.label}
