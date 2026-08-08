@@ -28,7 +28,14 @@ export default {
         ],
         mono: ['ui-monospace', 'SF Mono', 'JetBrains Mono', 'Menlo', 'Consolas', 'monospace'],
       },
-      borderRadius: { xl2: '18px' },
+      // Apple-scale geometry: pills for controls, generous radii for cards.
+      borderRadius: {
+        lg: '12px',
+        xl: '14px',
+        '2xl': '22px',
+        '3xl': '28px',
+        xl2: '18px',
+      },
     },
   },
   plugins: [],

@@ -275,9 +275,9 @@ export function RecordPane({ onRecordingChange }: { onRecordingChange?: (b: bool
     <div className="mx-auto flex min-h-full w-full max-w-md flex-col px-4 pb-10">
         {phase === 'idle' && (
           <>
-            <h1 className="mt-3 text-xl font-extrabold text-ink">純錄音模式</h1>
-            <p className="mt-1 text-[12.5px] text-muted">
-              不出即時字幕，只專心錄音；按結束後才交給 AI 產出逐字稿與會議紀錄。
+            <h1 className="mt-4 text-[34px] font-extrabold tracking-tight text-ink">錄音</h1>
+            <p className="mt-1 text-[13.5px] text-muted">
+              不出即時字幕，只專心錄音；結束後交給 AI 產出逐字稿與會議紀錄。
             </p>
 
             {pending && (
@@ -304,20 +304,20 @@ export function RecordPane({ onRecordingChange }: { onRecordingChange?: (b: bool
               </div>
             )}
 
-            <section className="mt-4 rounded-2xl border border-line bg-surface p-4">
+            <section className="mt-5 rounded-2xl bg-surface p-4 shadow-sm">
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="標題（可留空，自動以時間命名）"
-                className="w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-faint"
+                className="w-full rounded-xl bg-surface-2 px-3.5 py-3 text-[15px] text-ink placeholder:text-faint"
               />
               <input
                 value={settings.participants}
                 onChange={(e) => setSettings({ participants: e.target.value })}
-                placeholder="與會者（逗號分隔）— 大幅提升分辨講者準確度"
-                className="mt-2 w-full rounded-xl border border-line bg-paper px-3 py-2.5 text-[13px] text-ink placeholder:text-faint"
+                placeholder="與會者（逗號分隔）— 提升分辨講者準確度"
+                className="mt-2 w-full rounded-xl bg-surface-2 px-3.5 py-3 text-[14px] text-ink placeholder:text-faint"
               />
-              <div className="mt-3 border-t border-line pt-3">
+              <div className="mt-3 pt-1">
                 <Toggle
                   checked={settings.generateMinutes}
                   onChange={(v) => setSettings({ generateMinutes: v })}
@@ -325,26 +325,22 @@ export function RecordPane({ onRecordingChange }: { onRecordingChange?: (b: bool
                   hint="關閉則只產出逐字稿"
                 />
               </div>
-              <button onClick={() => nav('/settings/ai')} className="mt-3 flex w-full items-center justify-between rounded-xl bg-surface-2 px-3 py-2 text-left">
-                <span className="text-[12px] text-muted">AI 處理模型</span>
-                <span className="text-[12px] font-bold text-brand-ink">{llmLabel()} ›</span>
+              <button onClick={() => nav('/settings/ai')} className="mt-3 flex w-full items-center justify-between rounded-xl bg-surface-2 px-3.5 py-3 text-left">
+                <span className="text-[13px] text-muted">AI 處理模型</span>
+                <span className="text-[13px] font-bold text-brand-ink">{llmLabel()} ›</span>
               </button>
             </section>
 
             <button
               type="button"
               onClick={start}
-              className="mx-auto mt-8 grid h-36 w-36 place-items-center rounded-full text-white shadow-lg"
-              style={{
-                background: 'radial-gradient(120% 120% at 40% 30%, var(--live) 0%, #a51f26 100%)',
-                boxShadow: '0 12px 30px color-mix(in srgb, var(--live) 45%, transparent)',
-              }}
+              aria-label="開始錄音"
+              className="mx-auto mt-10 grid h-24 w-24 place-items-center rounded-full text-white transition-transform active:scale-95"
+              style={{ background: 'var(--brand)', boxShadow: '0 10px 30px color-mix(in srgb, var(--brand) 40%, transparent)' }}
             >
-              <span className="grid place-items-center gap-1">
-                <Mic className="h-8 w-8" />
-                <span className="text-[13.5px] font-extrabold tracking-wide">開始錄音</span>
-              </span>
+              <Mic className="h-9 w-9" />
             </button>
+            <div className="mt-3 text-center text-[13.5px] font-bold text-ink">開始錄音</div>
 
             {iosLike ? (
               <div className="mt-6 rounded-xl border border-line p-3" style={{ borderLeft: '4px solid var(--warn)', background: 'var(--warn-tint)' }}>
@@ -394,7 +390,7 @@ export function RecordPane({ onRecordingChange }: { onRecordingChange?: (b: bool
             <div className="tnum mt-6 text-center font-mono text-[56px] font-bold leading-none text-ink">{clock(elapsedMs / 1000)}</div>
             <div className="mt-1 text-center text-[13px] font-semibold text-muted">{title}</div>
 
-            <div className="mt-8 rounded-2xl border border-line bg-surface px-3 py-2">
+            <div className="mt-8 rounded-2xl bg-surface px-3 py-3 shadow-sm">
               <RecordWave analyser={analyser} paused={paused} />
             </div>
 
@@ -413,7 +409,7 @@ export function RecordPane({ onRecordingChange }: { onRecordingChange?: (b: bool
               <button
                 type="button"
                 onClick={togglePause}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3.5 text-sm font-bold text-zh-ink"
+                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-surface py-4 text-[14px] font-bold text-ink shadow-sm active:scale-[.98]"
               >
                 {paused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
                 {paused ? '繼續' : '暫停'}
@@ -421,8 +417,8 @@ export function RecordPane({ onRecordingChange }: { onRecordingChange?: (b: bool
               <button
                 type="button"
                 onClick={stopAndProcess}
-                className="flex flex-[1.4] items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-extrabold text-white"
-                style={{ background: 'var(--live)', boxShadow: '0 6px 16px color-mix(in srgb, var(--live) 40%, transparent)' }}
+                className="flex flex-[1.4] items-center justify-center gap-2 rounded-full py-4 text-[14px] font-extrabold text-white active:scale-[.98]"
+                style={{ background: 'var(--brand)', boxShadow: '0 8px 22px color-mix(in srgb, var(--brand) 38%, transparent)' }}
               >
                 <Stop className="h-4 w-4" />
                 結束並交給 AI

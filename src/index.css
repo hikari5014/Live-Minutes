@@ -7,59 +7,63 @@
    warm amber = 中文語言軌 · coral = LIVE 錄音訊號
    (與 docs/live-minutes-plan.html 一致)
    ============================================================ */
+/* Light: iOS grouped background — soft gray field, pure white cards.
+   Accent is a single vivid cyan; everything interactive uses it and nothing
+   else does. Borders are near-invisible: separation comes from fill + radius. */
 :root {
-  --paper:#F4F6F7; --surface:#FFFFFF; --surface-2:#EDF1F3;
-  --ink:#0F1720; --body:#2A333D; --muted:#5E6874; --faint:#8B949F;
-  --border:#E2E7EB; --border-strong:#CBD3D9;
-  --brand:#0C8F94; --brand-ink:#076C70; --brand-tint:#E1F2F2;
-  --zh:#B26A12; --zh-ink:#8A5410; --zh-tint:#F8EDD9;
-  --live:#D9363E; --live-tint:#FBE5E6;
-  --ok:#2E8B57; --ok-tint:#E3F2E9; --warn:#B9722A; --warn-tint:#F8ECDD;
-  --s1:#0C8F94; --s2:#B26A12; --s3:#5D50D6; --s4:#B23A78; --s5:#2E6FB0; --s6:#2E8B57;
-  --shadow-sm:0 1px 2px rgba(16,23,32,.06), 0 1px 3px rgba(16,23,32,.05);
-  --shadow-md:0 6px 20px rgba(16,23,32,.08), 0 2px 6px rgba(16,23,32,.05);
-  --shadow-lg:0 24px 60px rgba(16,23,32,.14), 0 8px 24px rgba(16,23,32,.08);
+  --paper:#F2F2F7; --surface:#FFFFFF; --surface-2:#EBEBF0;
+  --ink:#0A0A0C; --body:#3A3A3C; --muted:#6E6E73; --faint:#A1A1A8;
+  --border:#E6E6EB; --border-strong:#D4D4DA;
+  --brand:#07B6CC; --brand-ink:#048094; --brand-tint:#DFF7FB;
+  --zh:#C2751A; --zh-ink:#8F550F; --zh-tint:#FBEEDC;
+  --live:#E23B45; --live-tint:#FCE7E9;
+  --ok:#28A05F; --ok-tint:#E2F5EA; --warn:#C2751A; --warn-tint:#FBEEDC;
+  --s1:#07B6CC; --s2:#C2751A; --s3:#6155E0; --s4:#C43D82; --s5:#2F76BE; --s6:#28A05F;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 18px rgba(0,0,0,.07);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.12), 0 3px 12px rgba(0,0,0,.06);
 }
+/* Dark: true black, elevated gray cards, brighter cyan for contrast. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper:#0A0E13; --surface:#141A21; --surface-2:#1B222B;
-    --ink:#EDF1F5; --body:#C2CBD4; --muted:#8A95A0; --faint:#69737D;
-    --border:#242E38; --border-strong:#334049;
-    --brand:#25C6CC; --brand-ink:#7BE4E8; --brand-tint:rgba(37,198,204,.12);
-    --zh:#E1A85C; --zh-ink:#F0C489; --zh-tint:rgba(225,168,92,.14);
-    --live:#FF5A60; --live-tint:rgba(255,90,96,.14);
-    --ok:#49B87C; --ok-tint:rgba(73,184,124,.14); --warn:#E1A85C; --warn-tint:rgba(225,168,92,.14);
-    --s1:#2CC7CD; --s2:#E1A85C; --s3:#9A8CFF; --s4:#F06AA6; --s5:#6BA6E6; --s6:#4FC98A;
-    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
-    --shadow-md:0 8px 24px rgba(0,0,0,.5);
-    --shadow-lg:0 28px 70px rgba(0,0,0,.6);
+    --paper:#000000; --surface:#1C1C1E; --surface-2:#2C2C2E;
+    --ink:#FFFFFF; --body:#D6D6DB; --muted:#98989F; --faint:#6E6E76;
+    --border:#2C2C2E; --border-strong:#3A3A3C;
+    --brand:#4FD9E8; --brand-ink:#86E9F4; --brand-tint:rgba(79,217,232,.16);
+    --zh:#F0AC5E; --zh-ink:#F6C88E; --zh-tint:rgba(240,172,94,.16);
+    --live:#FF5F68; --live-tint:rgba(255,95,104,.16);
+    --ok:#4FD07E; --ok-tint:rgba(79,208,126,.16); --warn:#F0AC5E; --warn-tint:rgba(240,172,94,.16);
+    --s1:#4FD9E8; --s2:#F0AC5E; --s3:#A79BFF; --s4:#FF7AB4; --s5:#6FB2F5; --s6:#4FD07E;
+    --shadow-sm:0 1px 2px rgba(0,0,0,.6);
+    --shadow-md:0 6px 22px rgba(0,0,0,.7);
+    --shadow-lg:0 14px 46px rgba(0,0,0,.8);
   }
 }
 :root[data-theme="light"] {
-  --paper:#F4F6F7; --surface:#FFFFFF; --surface-2:#EDF1F3;
-  --ink:#0F1720; --body:#2A333D; --muted:#5E6874; --faint:#8B949F;
-  --border:#E2E7EB; --border-strong:#CBD3D9;
-  --brand:#0C8F94; --brand-ink:#076C70; --brand-tint:#E1F2F2;
-  --zh:#B26A12; --zh-ink:#8A5410; --zh-tint:#F8EDD9;
-  --live:#D9363E; --live-tint:#FBE5E6;
-  --ok:#2E8B57; --ok-tint:#E3F2E9; --warn:#B9722A; --warn-tint:#F8ECDD;
-  --s1:#0C8F94; --s2:#B26A12; --s3:#5D50D6; --s4:#B23A78; --s5:#2E6FB0; --s6:#2E8B57;
-  --shadow-sm:0 1px 2px rgba(16,23,32,.06), 0 1px 3px rgba(16,23,32,.05);
-  --shadow-md:0 6px 20px rgba(16,23,32,.08), 0 2px 6px rgba(16,23,32,.05);
-  --shadow-lg:0 24px 60px rgba(16,23,32,.14), 0 8px 24px rgba(16,23,32,.08);
+  --paper:#F2F2F7; --surface:#FFFFFF; --surface-2:#EBEBF0;
+  --ink:#0A0A0C; --body:#3A3A3C; --muted:#6E6E73; --faint:#A1A1A8;
+  --border:#E6E6EB; --border-strong:#D4D4DA;
+  --brand:#07B6CC; --brand-ink:#048094; --brand-tint:#DFF7FB;
+  --zh:#C2751A; --zh-ink:#8F550F; --zh-tint:#FBEEDC;
+  --live:#E23B45; --live-tint:#FCE7E9;
+  --ok:#28A05F; --ok-tint:#E2F5EA; --warn:#C2751A; --warn-tint:#FBEEDC;
+  --s1:#07B6CC; --s2:#C2751A; --s3:#6155E0; --s4:#C43D82; --s5:#2F76BE; --s6:#28A05F;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.04);
+  --shadow-md:0 4px 18px rgba(0,0,0,.07);
+  --shadow-lg:0 12px 40px rgba(0,0,0,.12), 0 3px 12px rgba(0,0,0,.06);
 }
 :root[data-theme="dark"] {
-  --paper:#0A0E13; --surface:#141A21; --surface-2:#1B222B;
-  --ink:#EDF1F5; --body:#C2CBD4; --muted:#8A95A0; --faint:#69737D;
-  --border:#242E38; --border-strong:#334049;
-  --brand:#25C6CC; --brand-ink:#7BE4E8; --brand-tint:rgba(37,198,204,.12);
-  --zh:#E1A85C; --zh-ink:#F0C489; --zh-tint:rgba(225,168,92,.14);
-  --live:#FF5A60; --live-tint:rgba(255,90,96,.14);
-  --ok:#49B87C; --ok-tint:rgba(73,184,124,.14); --warn:#E1A85C; --warn-tint:rgba(225,168,92,.14);
-  --s1:#2CC7CD; --s2:#E1A85C; --s3:#9A8CFF; --s4:#F06AA6; --s5:#6BA6E6; --s6:#4FC98A;
-  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
-  --shadow-md:0 8px 24px rgba(0,0,0,.5);
-  --shadow-lg:0 28px 70px rgba(0,0,0,.6);
+  --paper:#000000; --surface:#1C1C1E; --surface-2:#2C2C2E;
+  --ink:#FFFFFF; --body:#D6D6DB; --muted:#98989F; --faint:#6E6E76;
+  --border:#2C2C2E; --border-strong:#3A3A3C;
+  --brand:#4FD9E8; --brand-ink:#86E9F4; --brand-tint:rgba(79,217,232,.16);
+  --zh:#F0AC5E; --zh-ink:#F6C88E; --zh-tint:rgba(240,172,94,.16);
+  --live:#FF5F68; --live-tint:rgba(255,95,104,.16);
+  --ok:#4FD07E; --ok-tint:rgba(79,208,126,.16); --warn:#F0AC5E; --warn-tint:rgba(240,172,94,.16);
+  --s1:#4FD9E8; --s2:#F0AC5E; --s3:#A79BFF; --s4:#FF7AB4; --s5:#6FB2F5; --s6:#4FD07E;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.6);
+  --shadow-md:0 6px 22px rgba(0,0,0,.7);
+  --shadow-lg:0 14px 46px rgba(0,0,0,.8);
 }
 
 @layer base {

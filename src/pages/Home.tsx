@@ -150,8 +150,8 @@ export function LivePane() {
           </div>
         )}
         <section className="pt-4">
-          <h1 className="text-[26px] font-extrabold tracking-tight text-ink">開始一場會議</h1>
-          <p className="mt-1 text-[15px] text-muted">即時雙語字幕 · 分享連結 · AI 會議紀錄</p>
+          <h1 className="text-[34px] font-extrabold tracking-tight text-ink">即時字幕</h1>
+          <p className="mt-1 text-[13.5px] text-muted">即時雙語字幕 · 分享連結 · AI 會議紀錄</p>
         </section>
 
         <section className="rounded-2xl border border-line bg-surface p-4 shadow-sm">
@@ -290,24 +290,20 @@ export function LivePane() {
           type="button"
           onClick={start}
           disabled={starting}
-          className="mx-auto mt-2 grid h-32 w-32 place-items-center rounded-full text-white shadow-lg disabled:opacity-70"
-          style={{
-            background: 'radial-gradient(120% 120% at 40% 30%, var(--live) 0%, #a51f26 100%)',
-            boxShadow: '0 12px 30px color-mix(in srgb, var(--live) 45%, transparent)',
-          }}
+          className="mx-auto mt-4 grid h-24 w-24 place-items-center rounded-full text-white transition-transform active:scale-95 disabled:opacity-60"
+          style={{ background: 'var(--brand)', boxShadow: '0 10px 30px color-mix(in srgb, var(--brand) 40%, transparent)' }}
+          aria-label="開始錄音"
         >
-          <span className="grid place-items-center gap-1">
-            <Mic className="h-7 w-7" />
-            <span className="text-[13px] font-extrabold tracking-wide">{starting ? '啟動中…' : '開始錄音'}</span>
-          </span>
+          <Mic className="h-9 w-9" />
         </button>
-        <p className="text-center text-xs text-faint">點按開始 · 請保持螢幕開啟以免中斷</p>
+        <p className="text-center text-[13.5px] font-bold text-ink">{starting ? '啟動中…' : '開始錄音'}</p>
+        <p className="-mt-2 text-center text-[11.5px] text-faint">請保持螢幕開啟以免中斷</p>
 
         {/* Recordings that already exist (Zoom/Teams export, voice memo). */}
         <button
           type="button"
           onClick={() => nav('/import')}
-          className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface py-3 text-[13.5px] font-bold text-ink"
+          className="mt-1 flex w-full items-center justify-center gap-2 rounded-full bg-surface py-3.5 text-[13.5px] font-bold text-ink shadow-sm active:scale-[.98]"
         >
           <span className="material-symbols-rounded text-brand-ink" style={{ fontSize: 19 }}>
             upload_file
