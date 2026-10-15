@@ -110,9 +110,36 @@ export async function upsertRecording(meta: RecordingMeta): Promise<void> {
   })
 }
 
+/** All segments of a recording, in order. A segment only gets its metadata row
+ *  when its MediaRecorder stops cleanly; if the page was killed mid-recording
+ *  (screen lock, tab closed, crash) the last segment exists only as chunks.
+ *  Those are recovered here from the chunk keys so they are never silently
+ *  dropped from playback, export or transcription. */
 export async function listSegments(sessionId: string): Promise<SegmentMeta[]> {
-  const rows = await tx(SEGS, 'readonly', (t) => wrap(t.objectStore(SEGS).index('bySession').getAll(sessionId)))
-  return (rows as SegmentMeta[]).sort((a, b) => a.seg - b.seg)
+  const rows = (await tx(SEGS, 'readonly', (t) => wrap(t.objectStore(SEGS).index('bySession').getAll(sessionId)))) as SegmentMeta[]
+  const partKeys = (await tx(PARTS, 'readonly', (t) =>
+    wrap(t.objectStore(PARTS).index('bySession').getAllKeys(sessionId)),
+  )) as IDBValidKey[]
+  const known = new Map(rows.map((r) => [r.seg, r]))
+  const orphanSegs = new Set<number>()
+  for (const k of partKeys) {
+    const seg = Number(String(k).split('|')[1])
+    if (Number.isFinite(seg) && !known.has(seg)) orphanSegs.add(seg)
+  }
+  if (orphanSegs.size) {
+    const rec = await getRecording(sessionId).catch(() => null)
+    const mime = rec?.mime || rows[0]?.mime || 'audio/webm'
+    for (const seg of orphanSegs) known.set(seg, { sessionId, seg, mime, startMs: -1, durationMs: 0, bytes: 0 })
+  }
+  const out = [...known.values()].sort((a, b) => a.seg - b.seg)
+  // Orphans have no timing: place each right after the previous segment.
+  for (let i = 0; i < out.length; i++) {
+    if (out[i].startMs < 0) {
+      const prev = out[i - 1]
+      out[i] = { ...out[i], startMs: prev ? prev.startMs + prev.durationMs : 0 }
+    }
+  }
+  return out
 }
 
 /** Assemble one segment's chunks into a single playable/uploadable Blob. */

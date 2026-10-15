@@ -11,6 +11,7 @@ import Diagnostics from './pages/Diagnostics'
 import Import from './pages/Import'
 import Record from './pages/Record'
 import AISettings from './pages/AISettings'
+import Convert from './pages/Convert'
 import About from './pages/About'
 import NotFound from './pages/NotFound'
 
@@ -29,6 +30,7 @@ export default function App() {
       <Route path="/import" element={<Import />} />
       <Route path="/record" element={<Record />} />
       <Route path="/settings/ai" element={<AISettings />} />
+      <Route path="/convert" element={<Convert />} />
       <Route path="/about" element={<About />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

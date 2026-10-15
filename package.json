@@ -1,6 +1,6 @@
 {
   "name": "live-minutes",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "description": "跨裝置雙語即時字幕 + AI 會議紀錄 PWA（GitHub → Cloudflare）",
@@ -16,6 +16,8 @@
     "db:init": "wrangler d1 execute live_minutes --file=./schema.sql"
   },
   "dependencies": {
+    "@breezystack/lamejs": "^1.2.7",
+    "mp4-muxer": "^5.2.2",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

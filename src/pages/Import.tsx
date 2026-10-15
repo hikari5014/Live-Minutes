@@ -212,6 +212,9 @@ export default function Import() {
         <h1 className="mt-2 text-xl font-extrabold text-ink">匯入錄音</h1>
         <p className="mb-4 mt-1 text-[12.5px] text-muted">
           把既有的會議錄音丟進來，AI 會一次讀完、分辨講者，產出逐字稿與會議紀錄——不需要現場開著 App。
+          <button onClick={() => nav('/convert')} className="ml-1 font-bold text-brand-ink">
+            只想轉檔？→
+          </button>
         </p>
 
         {progress ? (

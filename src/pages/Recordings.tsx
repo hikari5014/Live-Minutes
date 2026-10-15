@@ -11,7 +11,10 @@ import {
   getSegmentBlob,
   pruneOlderThan,
   type RecordingMeta,
+  type SegmentMeta,
 } from '../lib/audiodb'
+import { FormatPicker, loadOpts } from '../components/FormatPicker'
+import { convert, saveBlob, FORMAT_INFO, estimateBytes, type ConvertOpts } from '../lib/convert'
 import { storageInfo, formatBytes, type StorageInfo } from '../lib/storage'
 import { shortDate } from '../lib/format'
 
@@ -29,8 +32,14 @@ export default function Recordings() {
   const [rev, setRev] = useState(0)
   const [recs, setRecs] = useState<RecordingMeta[]>([])
   const [info, setInfo] = useState<StorageInfo | null>(null)
-  const [playing, setPlaying] = useState<{ id: string; url: string } | null>(null)
+  // Segments are independent files: play them back-to-back rather than gluing
+  // their bytes together (which yields a file that stops after segment 1).
+  const [playing, setPlaying] = useState<{ id: string; segs: SegmentMeta[]; idx: number; url: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [exportFor, setExportFor] = useState<string | null>(null)
+  const [opts, setOpts] = useState<ConvertOpts>(() => loadOpts())
+  const [exportProg, setExportProg] = useState<{ id: string; p: number } | null>(null)
+  const [exportErr, setExportErr] = useState<string | null>(null)
   const bump = () => setRev((x) => x + 1)
 
   useEffect(() => {
@@ -43,37 +52,49 @@ export default function Recordings() {
 
   const totalBytes = useMemo(() => recs.reduce((n, r) => n + r.bytes, 0), [recs])
 
-  async function assemble(r: RecordingMeta): Promise<Blob | null> {
-    const segs = await listSegments(r.sessionId)
-    const blobs: Blob[] = []
-    for (const seg of segs) {
-      const b = await getSegmentBlob(r.sessionId, seg.seg, seg.mime)
-      if (b) blobs.push(b)
-    }
-    return blobs.length ? new Blob(blobs, { type: r.mime }) : null
+  async function loadSeg(r: RecordingMeta, segs: SegmentMeta[], idx: number) {
+    const seg = segs[idx]
+    const blob = await getSegmentBlob(r.sessionId, seg.seg, seg.mime || r.mime)
+    if (!blob) return null
+    return URL.createObjectURL(blob)
   }
 
   async function play(r: RecordingMeta) {
     setBusy(r.sessionId)
-    const blob = await assemble(r)
+    const segs = await listSegments(r.sessionId)
+    const url = segs.length ? await loadSeg(r, segs, 0) : null
     setBusy(null)
-    if (!blob) return
+    if (!url) return
     if (playing) URL.revokeObjectURL(playing.url)
-    setPlaying({ id: r.sessionId, url: URL.createObjectURL(blob) })
+    setPlaying({ id: r.sessionId, segs, idx: 0, url })
+  }
+
+  async function playNext(r: RecordingMeta) {
+    if (!playing || playing.idx + 1 >= playing.segs.length) return
+    const idx = playing.idx + 1
+    const url = await loadSeg(r, playing.segs, idx)
+    if (!url) return
+    URL.revokeObjectURL(playing.url)
+    setPlaying({ ...playing, idx, url })
   }
 
   async function exportFile(r: RecordingMeta) {
-    setBusy(r.sessionId)
-    const blob = await assemble(r)
-    setBusy(null)
-    if (!blob) return
-    const ext = r.mime.includes('mp4') || r.mime.includes('aac') ? 'm4a' : r.mime.includes('ogg') ? 'ogg' : 'webm'
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${r.title || '會議錄音'}.${ext}`
-    a.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1500)
+    setExportErr(null)
+    setExportProg({ id: r.sessionId, p: 0 })
+    try {
+      const segs = await listSegments(r.sessionId)
+      const { blob } = await convert(
+        segs.map((seg) => () => getSegmentBlob(r.sessionId, seg.seg, seg.mime || r.mime)),
+        opts,
+        (p) => setExportProg({ id: r.sessionId, p }),
+      )
+      saveBlob(blob, `${r.title || '會議錄音'}.${FORMAT_INFO[opts.format].ext}`)
+      setExportFor(null)
+    } catch (e) {
+      setExportErr(e instanceof Error ? e.message : String(e))
+    } finally {
+      setExportProg(null)
+    }
   }
 
   async function remove(r: RecordingMeta) {
@@ -137,6 +158,15 @@ export default function Recordings() {
             </span>
             匯入外部音檔
           </button>
+          <button
+            onClick={() => nav('/convert')}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-line py-2 text-[12.5px] font-bold text-brand-ink"
+          >
+            <span className="material-symbols-rounded" style={{ fontSize: 17 }}>
+              sync_alt
+            </span>
+            音檔轉換工具（任何音檔轉 MP3／M4A／WAV）
+          </button>
           <button onClick={() => nav('/settings/diagnostics')} className="mt-2 w-full text-center text-[12px] font-semibold text-brand-ink">
             查看裝置診斷 →
           </button>
@@ -175,8 +205,14 @@ export default function Recordings() {
                   >
                     {busy === r.sessionId ? '載入中…' : '播放'}
                   </button>
-                  <button onClick={() => exportFile(r)} className="flex-1 rounded-lg bg-surface-2 py-1.5 text-[12px] font-bold text-ink">
-                    匯出
+                  <button
+                    onClick={() => {
+                      setExportErr(null)
+                      setExportFor(exportFor === r.sessionId ? null : r.sessionId)
+                    }}
+                    className="flex-1 rounded-lg bg-surface-2 py-1.5 text-[12px] font-bold text-ink"
+                  >
+                    下載
                   </button>
                   <button
                     onClick={() => remove(r)}
@@ -187,7 +223,38 @@ export default function Recordings() {
                   </button>
                 </div>
                 {playing?.id === r.sessionId && (
-                  <audio src={playing.url} controls autoPlay className="mt-2 w-full" style={{ height: 36 }} />
+                  <div className="mt-2">
+                    <audio key={playing.url} src={playing.url} controls autoPlay onEnded={() => playNext(r)} className="w-full" style={{ height: 36 }} />
+                    {playing.segs.length > 1 && (
+                      <p className="mt-1 text-[11px] text-faint">
+                        第 {playing.idx + 1} / {playing.segs.length} 段 · 播完自動接下一段
+                      </p>
+                    )}
+                  </div>
+                )}
+                {exportFor === r.sessionId && (
+                  <div className="mt-2 rounded-xl bg-surface-2 p-3">
+                    <FormatPicker value={opts} onChange={setOpts} />
+                    <p className="mt-2 text-[11.5px] text-faint">預估大小約 {formatBytes(estimateBytes(r.durationMs / 1000, opts))}</p>
+                    {exportProg?.id === r.sessionId ? (
+                      <div className="mt-2">
+                        <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${Math.round(exportProg.p * 100)}%`, background: 'var(--brand)' }} />
+                        </div>
+                        <p className="mt-1 text-[11.5px] text-muted">轉檔中 {Math.round(exportProg.p * 100)}%…</p>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => exportFile(r)}
+                        disabled={!!exportProg}
+                        className="mt-2 w-full rounded-full py-2.5 text-[13px] font-extrabold text-white disabled:opacity-50"
+                        style={{ background: 'var(--brand)' }}
+                      >
+                        轉成 {FORMAT_INFO[opts.format].label} 並下載
+                      </button>
+                    )}
+                    {exportErr && <p className="mt-1.5 text-[12px] text-live">{exportErr}</p>}
+                  </div>
                 )}
               </div>
             ))}
@@ -195,7 +262,7 @@ export default function Recordings() {
         )}
 
         <p className="mt-4 text-center text-[11px] leading-relaxed text-faint">
-          音檔只存在這台裝置。清除瀏覽器資料會一併刪除——重要錄音請用「匯出」另存。
+          音檔只存在這台裝置。清除瀏覽器資料會一併刪除——重要錄音請用「下載」另存。
         </p>
       </main>
     </div>
